@@ -1,5 +1,8 @@
 # Dice Rolling Bot
 
+[![Go report](http://goreportcard.com/badge/github.com/hackedd/dicebot)](http://goreportcard.com/report/github.com/hackedd/dicebot)
+[![Build Status](https://travis-ci.org/hackedd/dicebot.svg?branch=master)](https://travis-ci.org/hackedd/dicebot)
+
 A dice rolling bot for Discord.
 
 ## Features
