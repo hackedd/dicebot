@@ -34,9 +34,9 @@ func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 
 func showUsage(s *discordgo.Session, channelID string) {
 	s.ChannelMessageSend(channelID, "Type `!roll d<x>` to roll a *x*-sided die\n"+
-			"Type `!roll <n>d<x>` to roll any number of *x*-sided dice (`!roll 3d6` rolls three regular six-sided dice)\n"+
-			"You can use simple mathematical expressions too. For example, `d20 + 4` rolls a twenty-sided dice and adds four to the result.\n"+
-			"The bot understands addition, subtraction, multiplication, division and brackets.")
+		"Type `!roll <n>d<x>` to roll any number of *x*-sided dice (`!roll 3d6` rolls three regular six-sided dice)\n"+
+		"You can use simple mathematical expressions too. For example, `d20 + 4` rolls a twenty-sided dice and adds four to the result.\n"+
+		"The bot understands addition, subtraction, multiplication, division and brackets.")
 }
 
 func rollDice(s *discordgo.Session, channelID, input string) error {

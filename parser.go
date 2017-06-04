@@ -117,11 +117,11 @@ func parenNud(token Token, it *TokenIter) (Expr, error) {
 }
 
 func numberNud(token Token, it *TokenIter) (Expr, error) {
-	if value, err := strconv.Atoi(token.Text); err == nil {
-		return &NumberExpr{value}, nil
-	} else {
+	value, err := strconv.Atoi(token.Text)
+	if err != nil {
 		return nil, ParseError{err.Error(), token.Position}
 	}
+	return &NumberExpr{value}, nil
 }
 
 func diceNud(token Token, it *TokenIter) (Expr, error) {
@@ -147,21 +147,21 @@ func diceNud(token Token, it *TokenIter) (Expr, error) {
 
 func prefixNud(operator UnaryFunc) nudFunc {
 	return func(token Token, it *TokenIter) (Expr, error) {
-		if left, err := parseExpression(it, 100); err == nil {
-			return &UnaryExpr{token.Text, operator, left}, nil
-		} else {
+		left, err := parseExpression(it, 100)
+		if err != nil {
 			return nil, err
 		}
+		return &UnaryExpr{token.Text, operator, left}, nil
 	}
 }
 
 func infixLed(operator BinaryFunc) ledFunc {
 	return func(left Expr, token Token, it *TokenIter) (Expr, error) {
-		if right, err := parseExpression(it, tokens[token.Type].lbp); err == nil {
-			return &BinaryExpr{token.Text, operator, left, right}, nil
-		} else {
+		right, err := parseExpression(it, tokens[token.Type].lbp)
+		if err != nil {
 			return nil, err
 		}
+		return &BinaryExpr{token.Text, operator, left, right}, nil
 	}
 }
 
