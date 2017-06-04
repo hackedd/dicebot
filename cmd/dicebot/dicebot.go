@@ -17,21 +17,6 @@ func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	s.UpdateStatus(0, "")
 }
 
-func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
-	if event.Guild.Unavailable {
-		return
-	}
-
-	log.Printf("Received guild create event: %s (%s)", event.Guild.Name, event.Guild.ID)
-
-	for _, channel := range event.Guild.Channels {
-		if channel.ID == event.Guild.ID {
-			s.ChannelMessageSend(channel.ID, "**Dice rolling bot ready for action. Type !roll to activate.**")
-			return
-		}
-	}
-}
-
 func showUsage(s *discordgo.Session, channelID string) {
 	s.ChannelMessageSend(channelID, "Type `!roll d<x>` to roll a *x*-sided die\n"+
 		"Type `!roll <n>d<x>` to roll any number of *x*-sided dice (`!roll 3d6` rolls three regular six-sided dice)\n"+
@@ -95,7 +80,6 @@ func run(context *cli.Context) error {
 	discord.ShardCount = context.Int("num-shards")
 
 	discord.AddHandler(onReady)
-	discord.AddHandler(onGuildCreate)
 	discord.AddHandler(onMessageCreate)
 
 	if err := discord.Open(); err != nil {
