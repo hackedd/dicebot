@@ -7,19 +7,19 @@ import (
 	"strings"
 )
 
-type TokenIter struct {
+type Parser struct {
 	tokens   []Token
 	position int
 }
 
-func (it *TokenIter) next() Token {
-	t := it.tokens[it.position]
-	it.position += 1
+func (parser *Parser) next() Token {
+	t := parser.tokens[parser.position]
+	parser.position += 1
 	return t
 }
 
-func (it *TokenIter) peek() Token {
-	return it.tokens[it.position]
+func (parser *Parser) peek() Token {
+	return parser.tokens[parser.position]
 }
 
 type Expr interface {
@@ -96,8 +96,8 @@ func (e *BinaryExpr) Eval() int {
 	return e.Operator(e.Left.Eval(), e.Right.Eval())
 }
 
-type nudFunc func(token Token, it *TokenIter) (Expr, error)
-type ledFunc func(left Expr, token Token, it *TokenIter) (Expr, error)
+type nudFunc func(parser *Parser, token Token) (Expr, error)
+type ledFunc func(parser *Parser, token Token, left Expr) (Expr, error)
 
 type pratt struct {
 	lbp int
@@ -105,18 +105,18 @@ type pratt struct {
 	led ledFunc
 }
 
-func parenNud(token Token, it *TokenIter) (Expr, error) {
-	expr, err := parseExpression(it, 0)
+func parenNud(parser *Parser, token Token) (Expr, error) {
+	expr, err := parser.parseExpression(0)
 	if err != nil {
 		return nil, err
 	}
-	if it.peek().Type != RIGHT_PAREN {
-		return nil, ParseError{"Expected )", it.peek().Position}
+	if parser.peek().Type != RIGHT_PAREN {
+		return nil, ParseError{"Expected )", parser.peek().Position}
 	}
 	return expr, nil
 }
 
-func numberNud(token Token, it *TokenIter) (Expr, error) {
+func numberNud(parser *Parser, token Token) (Expr, error) {
 	value, err := strconv.Atoi(token.Text)
 	if err != nil {
 		return nil, ParseError{err.Error(), token.Position}
@@ -124,7 +124,7 @@ func numberNud(token Token, it *TokenIter) (Expr, error) {
 	return &NumberExpr{value}, nil
 }
 
-func diceNud(token Token, it *TokenIter) (Expr, error) {
+func diceNud(parser *Parser, token Token) (Expr, error) {
 	var err error
 
 	parts := strings.Split(token.Text, "d")
@@ -146,8 +146,8 @@ func diceNud(token Token, it *TokenIter) (Expr, error) {
 }
 
 func prefixNud(operator UnaryFunc) nudFunc {
-	return func(token Token, it *TokenIter) (Expr, error) {
-		left, err := parseExpression(it, 100)
+	return func(parser *Parser, token Token) (Expr, error) {
+		left, err := parser.parseExpression(100)
 		if err != nil {
 			return nil, err
 		}
@@ -156,8 +156,8 @@ func prefixNud(operator UnaryFunc) nudFunc {
 }
 
 func infixLed(operator BinaryFunc) ledFunc {
-	return func(left Expr, token Token, it *TokenIter) (Expr, error) {
-		right, err := parseExpression(it, tokens[token.Type].lbp)
+	return func(parser *Parser, token Token, left Expr) (Expr, error) {
+		right, err := parser.parseExpression(tokens[token.Type].lbp)
 		if err != nil {
 			return nil, err
 		}
@@ -205,8 +205,8 @@ func init() {
 	}
 }
 
-func getCurrent(it *TokenIter) (Token, *pratt) {
-	token := it.peek()
+func (parser *Parser) getCurrent() (Token, *pratt) {
+	token := parser.peek()
 	pratt, ok := tokens[token.Type]
 	if !ok {
 		panic(fmt.Errorf("Parse error, unknown token %+v", token))
@@ -214,22 +214,22 @@ func getCurrent(it *TokenIter) (Token, *pratt) {
 	return token, pratt
 }
 
-func parseExpression(it *TokenIter, rbp int) (Expr, error) {
-	token, pratt := getCurrent(it)
-	it.next()
-	left, err := pratt.nud(token, it)
+func (parser *Parser) parseExpression(rbp int) (Expr, error) {
+	token, pratt := parser.getCurrent()
+	parser.next()
+	left, err := pratt.nud(parser, token)
 	if err != nil {
 		return nil, err
 	}
 
-	token, pratt = getCurrent(it)
+	token, pratt = parser.getCurrent()
 	for rbp < pratt.lbp {
-		it.next()
-		left, err = pratt.led(left, token, it)
+		parser.next()
+		left, err = pratt.led(parser, token, left)
 		if err != nil {
 			return nil, err
 		}
-		token, pratt = getCurrent(it)
+		token, pratt = parser.getCurrent()
 	}
 
 	return left, nil
@@ -239,5 +239,6 @@ func Parse(t []Token) (Expr, error) {
 	if t[0].Type == END {
 		return nil, ParseError{"Empty input", 0}
 	}
-	return parseExpression(&TokenIter{t, 0}, 0)
+	parser := &Parser{t, 0}
+	return parser.parseExpression(0)
 }
