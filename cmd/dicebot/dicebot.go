@@ -35,8 +35,13 @@ func rollDice(s *discordgo.Session, channelID, input string) error {
 		return err
 	}
 
-	// TODO: Add information about individual rolls in the result
-	s.ChannelMessageSend(channelID, fmt.Sprintf("%s => **%d**", input, expr.Eval()))
+	value := fmt.Sprintf("%d", expr.Eval())
+	explanation := expr.Explain()
+	if value == explanation {
+		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => **%s**", input, value))
+	} else {
+		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => %s => **%s**", input, explanation, value))
+	}
 
 	return nil
 }

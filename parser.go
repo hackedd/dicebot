@@ -25,6 +25,7 @@ func (parser *Parser) peek() Token {
 type Expr interface {
 	String() string
 	Eval() int
+	Explain() string
 }
 
 type NumberExpr struct {
@@ -54,6 +55,10 @@ type BinaryExpr struct {
 	Right    Expr
 }
 
+type ParenExpr struct {
+	Expr Expr
+}
+
 func (e *NumberExpr) String() string {
 	return fmt.Sprintf("%d", e.Value)
 }
@@ -62,22 +67,47 @@ func (e *NumberExpr) Eval() int {
 	return e.Value
 }
 
+func (e *NumberExpr) Explain() string {
+	return e.String()
+}
+
 func (e *DiceExpr) String() string {
 	return fmt.Sprintf("%dd%d", e.Number, e.Sides)
 }
 
-func (e *DiceExpr) Eval() int {
-	if e.Rolled == nil {
-		e.Rolled = make([]int, e.Sides)
-		for i := 0; i < e.Number; i += 1 {
-			e.Rolled[i] = rand.Intn(e.Sides) + 1
-		}
+func (e *DiceExpr) Roll() {
+	if e.Rolled != nil {
+		return
 	}
+
+	e.Rolled = make([]int, e.Number)
+	for i := 0; i < e.Number; i += 1 {
+		e.Rolled[i] = rand.Intn(e.Sides) + 1
+	}
+}
+
+func (e *DiceExpr) Eval() int {
+	e.Roll()
+
 	t := 0
 	for _, r := range e.Rolled {
 		t += r
 	}
 	return t
+}
+
+func (e *DiceExpr) Explain() string {
+	e.Roll()
+
+	if e.Number == 1 {
+		return fmt.Sprintf("%d", e.Rolled[0])
+	}
+
+	parts := make([]string, e.Number)
+	for i, r := range e.Rolled {
+		parts[i] = fmt.Sprintf("%d", r)
+	}
+	return fmt.Sprintf("(%s)", strings.Join(parts, " + "))
 }
 
 func (e *UnaryExpr) String() string {
@@ -88,12 +118,32 @@ func (e *UnaryExpr) Eval() int {
 	return e.Operator(e.Value.Eval())
 }
 
+func (e *UnaryExpr) Explain() string {
+	return fmt.Sprintf("%s%s", e.OpName, e.Value.Explain())
+}
+
 func (e *BinaryExpr) String() string {
 	return fmt.Sprintf("(%s %s %s)", e.OpName, e.Left.String(), e.Right.String())
 }
 
 func (e *BinaryExpr) Eval() int {
 	return e.Operator(e.Left.Eval(), e.Right.Eval())
+}
+
+func (e *BinaryExpr) Explain() string {
+	return fmt.Sprintf("%s %s %s", e.Left.Explain(), e.OpName, e.Right.Explain())
+}
+
+func (e *ParenExpr) String() string {
+	return e.Expr.String()
+}
+
+func (e *ParenExpr) Eval() int {
+	return e.Expr.Eval()
+}
+
+func (e *ParenExpr) Explain() string {
+	return fmt.Sprintf("(%s)", e.Expr.Explain())
 }
 
 type nudFunc func(parser *Parser, token Token) (Expr, error)
@@ -113,7 +163,7 @@ func parenNud(parser *Parser, token Token) (Expr, error) {
 	if parser.peek().Type != RIGHT_PAREN {
 		return nil, ParseError{"Expected )", parser.peek().Position}
 	}
-	return expr, nil
+	return &ParenExpr{expr}, nil
 }
 
 func numberNud(parser *Parser, token Token) (Expr, error) {
