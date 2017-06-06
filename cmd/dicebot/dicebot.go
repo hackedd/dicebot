@@ -54,6 +54,14 @@ func rollDice(s *discordgo.Session, channelID, input string) error {
 }
 
 func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	handleMessage(s, m.Message)
+}
+
+func onMessageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
+	handleMessage(s, m.Message)
+}
+
+func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
@@ -98,6 +106,7 @@ func run(context *cli.Context) error {
 
 	discord.AddHandler(onReady)
 	discord.AddHandler(onMessageCreate)
+	discord.AddHandler(onMessageUpdate)
 
 	if err := discord.Open(); err != nil {
 		return cli.NewExitError(fmt.Sprintf("Unable to connect to Discord: %s", err), 1)
