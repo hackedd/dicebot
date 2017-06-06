@@ -24,6 +24,13 @@ func showUsage(s *discordgo.Session, channelID string) {
 		"The bot understands addition, subtraction, multiplication, division and brackets.")
 }
 
+func escapeMarkdown(input string) string {
+	for _, s := range []string{"*", "~", "_", "`"} {
+		input = strings.Replace(input, s, "\\"+s, -1)
+	}
+	return input
+}
+
 func rollDice(s *discordgo.Session, channelID, input string) error {
 	tokens, err := dicebot.Tokenize(input)
 	if err != nil {
@@ -37,10 +44,10 @@ func rollDice(s *discordgo.Session, channelID, input string) error {
 
 	value := fmt.Sprintf("%d", expr.Eval())
 	explanation := expr.Explain()
-	if value == explanation {
-		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => **%s**", input, value))
+	if input == explanation || value == explanation {
+		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => **%s**", escapeMarkdown(input), escapeMarkdown(value)))
 	} else {
-		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => %s => **%s**", input, explanation, value))
+		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => %s => **%s**", escapeMarkdown(input), escapeMarkdown(explanation), escapeMarkdown(value)))
 	}
 
 	return nil
@@ -70,7 +77,12 @@ func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	} else {
 		err := rollDice(s, m.ChannelID, command)
 		if err != nil {
-			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n%s", command, err))
+			if parseError, ok := err.(dicebot.ParseError); ok {
+				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n", escapeMarkdown(command)))
+				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("```\n%s\n%s^-- %s\n```", command, strings.Repeat(" ", parseError.Position), parseError.Message))
+			} else {
+				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n%s", escapeMarkdown(command), err))
+			}
 		}
 	}
 }
