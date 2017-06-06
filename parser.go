@@ -155,6 +155,14 @@ type pratt struct {
 	led ledFunc
 }
 
+func errorNud(parser *Parser, token Token) (Expr, error) {
+	return nil, ParseError{"Unexpected input", token.Position}
+}
+
+func errorLed(parser *Parser, token Token, left Expr) (Expr, error) {
+	return nil, ParseError{"Unexpected input", token.Position}
+}
+
 func parenNud(parser *Parser, token Token) (Expr, error) {
 	expr, err := parser.parseExpression(0)
 	if err != nil {
@@ -244,15 +252,15 @@ var tokens map[TokenType]*pratt
 
 func init() {
 	tokens = map[TokenType]*pratt{
-		LEFT_PAREN:  {50, parenNud, nil},
-		RIGHT_PAREN: {0, nil, nil},
+		LEFT_PAREN:  {50, parenNud, errorLed},
+		RIGHT_PAREN: {0, errorNud, errorLed},
 		PLUS:        {10, prefixNud(unaryPlus), infixLed(plus)},
 		MINUS:       {10, prefixNud(unaryMinus), infixLed(minus)},
-		MULTIPLY:    {20, nil, infixLed(multiply)},
-		DIVIDE:      {20, nil, infixLed(divide)},
-		NUMBER:      {0, numberNud, nil},
-		DICE:        {0, diceNud, nil},
-		END:         {0, nil, nil},
+		MULTIPLY:    {20, errorNud, infixLed(multiply)},
+		DIVIDE:      {20, errorNud, infixLed(divide)},
+		NUMBER:      {0, numberNud, errorLed},
+		DICE:        {0, diceNud, errorLed},
+		END:         {0, errorNud, errorLed},
 	}
 }
 
@@ -291,5 +299,16 @@ func Parse(t []Token) (Expr, error) {
 		return nil, ParseError{"Empty input", 0}
 	}
 	parser := &Parser{t, 0}
-	return parser.parseExpression(0)
+
+	expr, err := parser.parseExpression(0)
+	if err != nil {
+		return nil, err
+	}
+
+	token, _ := parser.getCurrent()
+	if token.Type != END {
+		return nil, ParseError{"Unexpected input", token.Position}
+	}
+
+	return expr, nil
 }

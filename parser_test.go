@@ -65,6 +65,9 @@ type parseErrorExample struct {
 var parseErrorExamples = []parseErrorExample{
 	{"", "Empty input near position 0"},
 	{"(1", "Expected ) near position 2"},
+	{"1 +", "Unexpected input near position 3"},
+	{")", "Unexpected input near position 0"},
+	{"1 1", "Unexpected input near position 2"},
 }
 
 func TestParseErrors(t *testing.T) {
