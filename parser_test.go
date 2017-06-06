@@ -25,6 +25,7 @@ var parseExamples = []parseExample{
 	{"d20", "1d20", 1, 20},
 	{"2d", "2d6", 2 * 1, 2 * 6},
 	{"20d6", "20d6", 20 * 1, 20 * 6},
+	{"(1 + 2) + 3", "(+ (+ 1 2) 3)", 6, 6},
 }
 
 func TestParse(t *testing.T) {

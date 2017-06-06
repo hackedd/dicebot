@@ -163,6 +163,7 @@ func parenNud(parser *Parser, token Token) (Expr, error) {
 	if parser.peek().Type != RIGHT_PAREN {
 		return nil, ParseError{"Expected )", parser.peek().Position}
 	}
+	parser.next()
 	return &ParenExpr{expr}, nil
 }
 
