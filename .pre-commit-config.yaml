@@ -1,0 +1,38 @@
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  sha: v0.8.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+
+# None of these hooks take file names, this is a new feature in
+# pre-commit 0.14.0. If you get errors along the lines of 'cannot find package
+# "parser.go" in any of', you probably need to upgrade.
+#
+# The 'gofmt' hook requires Bash because 'gofmt' does not use its exit status
+# to indicate if any changes were made. You might want to skip it on Windows.
+- repo: local
+  hooks:
+    - id: gofmt
+      name: go fmt
+      entry: bash -c '[[ -z $(gofmt -s -l -w .) ]]'
+      language: system
+      files: \.go$
+      pass_filenames: false
+    - id: govet
+      name: go vet
+      entry: go vet -x ./...
+      language: system
+      files: \.go$
+      pass_filenames: false
+    - id: golint
+      name: golint
+      entry: golint ./...
+      language: system
+      files: \.go$
+      pass_filenames: false
+    - id: gotest
+      name: go test
+      entry: go test ./...
+      language: system
+      always_run: true
+      pass_filenames: false
