@@ -12,45 +12,11 @@ import (
 	"github.com/urfave/cli"
 )
 
+var bot = &dicebot.Bot{}
+
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Print("Received ready event")
 	s.UpdateStatus(0, "")
-}
-
-func showUsage(s *discordgo.Session, channelID string) {
-	s.ChannelMessageSend(channelID, "Type `!roll d<x>` to roll a *x*-sided die\n"+
-		"Type `!roll <n>d<x>` to roll any number of *x*-sided dice (`!roll 3d6` rolls three regular six-sided dice)\n"+
-		"You can use simple mathematical expressions too. For example, `d20 + 4` rolls a twenty-sided dice and adds four to the result.\n"+
-		"The bot understands addition, subtraction, multiplication, division and brackets.")
-}
-
-func escapeMarkdown(input string) string {
-	for _, s := range []string{"*", "~", "_", "`"} {
-		input = strings.Replace(input, s, "\\"+s, -1)
-	}
-	return input
-}
-
-func rollDice(s *discordgo.Session, channelID, input string) error {
-	tokens, err := dicebot.Tokenize(input)
-	if err != nil {
-		return err
-	}
-
-	expr, err := dicebot.Parse(tokens)
-	if err != nil {
-		return err
-	}
-
-	value := fmt.Sprintf("%d", expr.Eval())
-	explanation := expr.Explain()
-	if input == explanation || value == explanation {
-		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => **%s**", escapeMarkdown(input), escapeMarkdown(value)))
-	} else {
-		s.ChannelMessageSend(channelID, fmt.Sprintf("%s => %s => **%s**", escapeMarkdown(input), escapeMarkdown(explanation), escapeMarkdown(value)))
-	}
-
-	return nil
 }
 
 func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -66,32 +32,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 		return
 	}
 
-	if len(m.Content) <= 0 || m.Content[0] != '!' {
-		return
-	}
-
 	msg := strings.Replace(m.ContentWithMentionsReplaced(), s.State.Ready.User.Username, "username", 1)
 
 	log.Printf("Received message: %s", msg)
 
-	idx := strings.Index(msg, "!roll")
-	if idx < 0 {
-		return
-	}
-
-	command := strings.TrimSpace(msg[idx+5:])
-	if command == "" || command == "help" {
-		showUsage(s, m.ChannelID)
-	} else {
-		err := rollDice(s, m.ChannelID, command)
-		if err != nil {
-			if parseError, ok := err.(dicebot.ParseError); ok {
-				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n", escapeMarkdown(command)))
-				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("```\n%s\n%s^-- %s\n```", command, strings.Repeat(" ", parseError.Position), parseError.Message))
-			} else {
-				s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n%s", escapeMarkdown(command), err))
-			}
-		}
+	response := bot.HandleMessage(msg)
+	if response != "" {
+		s.ChannelMessageSend(m.ChannelID, response)
 	}
 }
 
