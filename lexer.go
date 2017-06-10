@@ -2,6 +2,7 @@ package dicebot
 
 import (
 	"fmt"
+	"regexp"
 	"unicode"
 )
 
@@ -16,6 +17,7 @@ const (
 	DIVIDE
 	NUMBER
 	DICE
+	IDENTIFIER
 	END
 )
 
@@ -34,6 +36,18 @@ var operators = map[rune]TokenType{
 	'/': DIVIDE,
 }
 
+type tokenPattern struct {
+	Type    TokenType
+	Pattern *regexp.Regexp
+}
+
+// Dice is before identifier, so that things like 'd6' are parsed as a dice, not identifier.
+var patterns = []tokenPattern{
+	{NUMBER, regexp.MustCompile(`\d+`)},
+	{DICE, regexp.MustCompile(`(?i)(\d*)d(\d+)`)},
+	{IDENTIFIER, regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`)},
+}
+
 type ParseError struct {
 	Message  string
 	Position int
@@ -41,6 +55,20 @@ type ParseError struct {
 
 func (e ParseError) Error() string {
 	return fmt.Sprintf("%s near position %d", e.Message, e.Position)
+}
+
+func longestMatch(input string) (tokenType TokenType, match string) {
+	tokenType = END
+	match = ""
+
+	for _, p := range patterns {
+		if loc := p.Pattern.FindStringIndex(input); loc != nil && loc[0] == 0 && loc[1] > len(match) {
+			tokenType = p.Type
+			match = input[:loc[1]]
+		}
+	}
+
+	return
 }
 
 func Tokenize(expression string) ([]Token, error) {
@@ -57,30 +85,13 @@ func Tokenize(expression string) ([]Token, error) {
 			continue
 		}
 
-		s := i
-		d := 0
-		for i < len(runes) && (runes[i] >= '0' && runes[i] <= '9' || runes[i] == 'd') {
-			if runes[i] == 'd' {
-				d += 1
-			}
-			i += 1
+		tokenType, match := longestMatch(string(runes[i:]))
+		if tokenType == END {
+			return nil, ParseError{"Input not matched", i}
 		}
 
-		if s == i {
-			return nil, ParseError{fmt.Sprintf("Unrecognized character '%c'", runes[s]), s}
-		}
-
-		value := string(runes[s:i])
-		if d == 0 {
-			tokens = append(tokens, Token{NUMBER, value, s})
-		} else if d == 1 {
-			tokens = append(tokens, Token{DICE, value, s})
-		} else {
-			return nil, ParseError{fmt.Sprintf("Unexpected 'd' in '%s'", value), s}
-		}
-
-		// Prevent skipping the next character.
-		i -= 1
+		tokens = append(tokens, Token{tokenType, match, i})
+		i += len(match) - 1
 	}
 
 	tokens = append(tokens, Token{END, "", len(runes)})

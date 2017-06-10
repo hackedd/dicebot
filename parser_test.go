@@ -23,9 +23,14 @@ var parseExamples = []parseExample{
 	{"+-1", "(+ (- 1))", -1, -1},
 	{"10 / 2 - 1", "(- (/ 10 2) 1)", 4, 4},
 	{"d20", "1d20", 1, 20},
-	{"2d", "2d6", 2 * 1, 2 * 6},
 	{"20d6", "20d6", 20 * 1, 20 * 6},
 	{"(1 + 2) + 3", "(+ (+ 1 2) 3)", 6, 6},
+	{"a + b", "(+ a b)", 3, 3},
+	{"c * d6", "(* c 1d6)", 3 * 1, 3 * 6},
+}
+
+func testLookup(name string) int {
+	return int(name[0]-'a') + 1
 }
 
 func TestParse(t *testing.T) {
@@ -47,12 +52,16 @@ func TestParse(t *testing.T) {
 			continue
 		}
 
-		for i := 0; i < 100; i += 1 {
-			value := actual.Eval()
-			if value < example.min || value > example.max {
-				t.Errorf("Evaluating '%s' failed: expected %d <= %d <= %d", example.input, example.min, value, example.max)
-				break
-			}
+		value := actual.Eval(testLookup)
+		if value < example.min || value > example.max {
+			t.Errorf("Evaluating '%s' failed: expected %d <= %d <= %d", example.input, example.min, value, example.max)
+			continue
+		}
+
+		secondValue := actual.Eval(testLookup)
+		if secondValue != value {
+			t.Errorf("Evaluating '%s' failed: value changed (%d != %d)", example.input, secondValue, value)
+			continue
 		}
 	}
 }
@@ -103,6 +112,7 @@ var explainExamples = []explainExample{
 	{"1 + 2", "1 + 2"},
 	{"-5", "-5"},
 	{"1 * (2 + 3)", "1 * (2 + 3)"},
+	{"a*b", "a * b"},
 }
 
 func TestExplain(t *testing.T) {

@@ -22,9 +22,11 @@ func (parser *Parser) peek() Token {
 	return parser.tokens[parser.position]
 }
 
+type Lookup func(name string) int
+
 type Expr interface {
 	String() string
-	Eval() int
+	Eval(lookup Lookup) int
 	Explain() string
 }
 
@@ -36,6 +38,10 @@ type DiceExpr struct {
 	Number int
 	Sides  int
 	Rolled []int
+}
+
+type VariableExpr struct {
+	Name string
 }
 
 type UnaryFunc func(value int) int
@@ -63,7 +69,7 @@ func (e *NumberExpr) String() string {
 	return fmt.Sprintf("%d", e.Value)
 }
 
-func (e *NumberExpr) Eval() int {
+func (e *NumberExpr) Eval(lookup Lookup) int {
 	return e.Value
 }
 
@@ -86,7 +92,7 @@ func (e *DiceExpr) Roll() {
 	}
 }
 
-func (e *DiceExpr) Eval() int {
+func (e *DiceExpr) Eval(lookup Lookup) int {
 	e.Roll()
 
 	t := 0
@@ -110,12 +116,24 @@ func (e *DiceExpr) Explain() string {
 	return fmt.Sprintf("(%s)", strings.Join(parts, " + "))
 }
 
+func (e *VariableExpr) String() string {
+	return e.Name
+}
+
+func (e *VariableExpr) Eval(lookup Lookup) int {
+	return lookup(e.Name)
+}
+
+func (e *VariableExpr) Explain() string {
+	return e.Name
+}
+
 func (e *UnaryExpr) String() string {
 	return fmt.Sprintf("(%s %s)", e.OpName, e.Value.String())
 }
 
-func (e *UnaryExpr) Eval() int {
-	return e.Operator(e.Value.Eval())
+func (e *UnaryExpr) Eval(lookup Lookup) int {
+	return e.Operator(e.Value.Eval(lookup))
 }
 
 func (e *UnaryExpr) Explain() string {
@@ -126,8 +144,8 @@ func (e *BinaryExpr) String() string {
 	return fmt.Sprintf("(%s %s %s)", e.OpName, e.Left.String(), e.Right.String())
 }
 
-func (e *BinaryExpr) Eval() int {
-	return e.Operator(e.Left.Eval(), e.Right.Eval())
+func (e *BinaryExpr) Eval(lookup Lookup) int {
+	return e.Operator(e.Left.Eval(lookup), e.Right.Eval(lookup))
 }
 
 func (e *BinaryExpr) Explain() string {
@@ -138,8 +156,8 @@ func (e *ParenExpr) String() string {
 	return e.Expr.String()
 }
 
-func (e *ParenExpr) Eval() int {
-	return e.Expr.Eval()
+func (e *ParenExpr) Eval(lookup Lookup) int {
+	return e.Expr.Eval(lookup)
 }
 
 func (e *ParenExpr) Explain() string {
@@ -204,6 +222,10 @@ func diceNud(parser *Parser, token Token) (Expr, error) {
 	return &DiceExpr{number, sides, nil}, nil
 }
 
+func identifierNud(parser *Parser, token Token) (Expr, error) {
+	return &VariableExpr{token.Text}, nil
+}
+
 func prefixNud(operator UnaryFunc) nudFunc {
 	return func(parser *Parser, token Token) (Expr, error) {
 		left, err := parser.parseExpression(100)
@@ -260,6 +282,7 @@ func init() {
 		DIVIDE:      {20, errorNud, infixLed(divide)},
 		NUMBER:      {0, numberNud, errorLed},
 		DICE:        {0, diceNud, errorLed},
+		IDENTIFIER:  {0, identifierNud, errorLed},
 		END:         {0, errorNud, errorLed},
 	}
 }

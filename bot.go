@@ -22,6 +22,11 @@ func (bot *Bot) Usage() string {
 		"The bot understands addition, subtraction, multiplication, division and brackets."
 }
 
+func (bot *Bot) LookupVariable(name string) int {
+	// TODO: Variable lookup
+	return 0
+}
+
 func (bot *Bot) RollDice(input string) string {
 	tokens, err := Tokenize(input)
 	if err != nil {
@@ -33,7 +38,7 @@ func (bot *Bot) RollDice(input string) string {
 		return bot.HandleError(input, err)
 	}
 
-	value := fmt.Sprintf("%d", expr.Eval())
+	value := fmt.Sprintf("%d", expr.Eval(bot.LookupVariable))
 	explanation := expr.Explain()
 
 	s := EscapeMarkdown(input) + " => "

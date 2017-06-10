@@ -40,7 +40,7 @@ func ExampleBot_HandleMessage_error1() {
 	// Sorry, I don't understand how to parse '1.5d6'
 	// ```
 	// 1.5d6
-	//  ^-- Unrecognized character '.'
+	//  ^-- Input not matched
 	// ```
 }
 
