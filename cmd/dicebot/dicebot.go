@@ -96,7 +96,12 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 }
 
 func run(context *cli.Context) error {
-	discord, err := discordgo.New("Bot " + context.String("token"))
+	token := context.String("token")
+	if token == "" {
+		return cli.NewExitError("Authentication token is required.", 1)
+	}
+
+	discord, err := discordgo.New("Bot " + token)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("Unable to create Discord session: %s", err), 1)
 	}
