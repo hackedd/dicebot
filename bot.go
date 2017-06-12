@@ -2,6 +2,7 @@ package dicebot
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +14,11 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
+	Vars map[string]int
+}
+
+func NewBot() *Bot {
+	return &Bot{Vars: make(map[string]int)}
 }
 
 func (bot *Bot) Usage() string {
@@ -23,17 +29,11 @@ func (bot *Bot) Usage() string {
 }
 
 func (bot *Bot) LookupVariable(name string) int {
-	// TODO: Variable lookup
-	return 0
+	return bot.Vars[name]
 }
 
 func (bot *Bot) RollDice(input string) string {
-	tokens, err := Tokenize(input)
-	if err != nil {
-		return bot.HandleError(input, err)
-	}
-
-	expr, err := Parse(tokens)
+	expr, err := ParseString(input)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
@@ -49,16 +49,30 @@ func (bot *Bot) RollDice(input string) string {
 	return s
 }
 
-func (bot *Bot) HandleError(command string, err error) string {
-	s := fmt.Sprintf("Sorry, I don't understand how to parse '%s'\n", EscapeMarkdown(command))
-
-	if parseError, ok := err.(ParseError); ok {
-		s += fmt.Sprintf("```\n%s\n%s^-- %s\n```", command, strings.Repeat(" ", parseError.Position), parseError.Message)
-	} else {
-		s += err.Error()
+func (bot *Bot) Save(input, name string) string {
+	expr, err := ParseString(input)
+	if err != nil {
+		return bot.HandleError(input, err)
 	}
 
-	return s
+	value := expr.Eval(bot.LookupVariable)
+	bot.Vars[name] = value
+
+	return fmt.Sprintf("Saved **%d** as `%s`", value, name)
+}
+
+func (bot *Bot) HandleError(command string, err error) string {
+	s := fmt.Sprintf("Sorry, I don't understand how to parse '%s'", EscapeMarkdown(command))
+
+	if err == nil {
+		return s
+	}
+
+	if parseError, ok := err.(ParseError); ok {
+		return s + fmt.Sprintf("\n```\n%s\n%s^-- %s\n```", command, strings.Repeat(" ", parseError.Position), parseError.Message)
+	}
+
+	return s + ": " + err.Error()
 }
 
 func (bot *Bot) HandleMessage(msg string) string {
@@ -70,6 +84,16 @@ func (bot *Bot) HandleMessage(msg string) string {
 	command := strings.TrimSpace(msg[idx+5:])
 	if command == "" || command == "help" {
 		return bot.Usage()
+	}
+
+	if strings.Index(command, "save") == 0 {
+		r := regexp.MustCompile(`\Asave\s+(.*)\s+as\s+(\w+)\z`)
+		match := r.FindStringSubmatch(command)
+		if match == nil {
+			return bot.HandleError(command, nil)
+		}
+
+		return bot.Save(match[1], match[2])
 	}
 
 	return bot.RollDice(command)

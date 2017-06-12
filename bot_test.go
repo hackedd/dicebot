@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-var bot = &Bot{}
+var bot = NewBot()
 
 func ExampleEscapeMarkdown() {
 	fmt.Println(EscapeMarkdown("1 * 2 + `a`"))
@@ -32,6 +32,14 @@ func ExampleBot_HandleMessage_roll() {
 	rand.Seed(1)
 	fmt.Println(bot.HandleMessage("!roll 2d6"))
 	// Output: 2d6 => **(6 + 4)** => **10**
+}
+
+func ExampleBot_HandleMessage_save() {
+	fmt.Println(bot.HandleMessage("!roll save 10 as ten"))
+	fmt.Println(bot.HandleMessage("!roll ten"))
+	// Output:
+	// Saved **10** as `ten`
+	// ten => **10**
 }
 
 func ExampleBot_HandleMessage_error1() {

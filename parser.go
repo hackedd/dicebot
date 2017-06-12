@@ -335,3 +335,12 @@ func Parse(t []Token) (Expr, error) {
 
 	return expr, nil
 }
+
+func ParseString(input string) (Expr, error) {
+	tokens, err := Tokenize(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return Parse(tokens)
+}

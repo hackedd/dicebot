@@ -12,7 +12,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var bot = &dicebot.Bot{}
+var bot = dicebot.NewBot()
 
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Print("Received ready event")
