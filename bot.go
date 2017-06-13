@@ -39,7 +39,12 @@ func (bot *Bot) RollDice(input string) string {
 		return bot.HandleError(input, err)
 	}
 
-	value := fmt.Sprintf("%d", expr.Eval(bot.LookupVariable))
+	v, err := expr.Eval(bot.LookupVariable)
+	if err != nil {
+		return bot.HandleError(input, err)
+	}
+
+	value := fmt.Sprintf("%d", v)
 	explanation := expr.Explain(bot.LookupVariable)
 
 	s := EscapeMarkdown(input) + " => "

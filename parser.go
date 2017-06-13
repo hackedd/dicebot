@@ -1,6 +1,7 @@
 package dicebot
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -26,7 +27,7 @@ type Lookup func(name string) (Expr, bool)
 
 type Expr interface {
 	String() string
-	Eval(lookup Lookup) int
+	Eval(lookup Lookup) (int, error)
 	Explain(lookup Lookup) string
 }
 
@@ -69,8 +70,8 @@ func (e *NumberExpr) String() string {
 	return fmt.Sprintf("%d", e.Value)
 }
 
-func (e *NumberExpr) Eval(lookup Lookup) int {
-	return e.Value
+func (e *NumberExpr) Eval(lookup Lookup) (int, error) {
+	return e.Value, nil
 }
 
 func (e *NumberExpr) Explain(lookup Lookup) string {
@@ -92,14 +93,14 @@ func (e *DiceExpr) Roll() {
 	}
 }
 
-func (e *DiceExpr) Eval(lookup Lookup) int {
+func (e *DiceExpr) Eval(lookup Lookup) (int, error) {
 	e.Roll()
 
 	t := 0
 	for _, r := range e.Rolled {
 		t += r
 	}
-	return t
+	return t, nil
 }
 
 func (e *DiceExpr) Explain(lookup Lookup) string {
@@ -120,26 +121,30 @@ func (e *VariableExpr) String() string {
 	return e.Name
 }
 
-func (e *VariableExpr) Eval(lookup Lookup) int {
+func (e *VariableExpr) Eval(lookup Lookup) (int, error) {
 	if expr, ok := lookup(e.Name); ok {
 		return expr.Eval(lookup)
 	}
-	panic("Undefined variable " + e.Name)
+	return 0, errors.New(fmt.Sprintf("Undefined variable `%s`", e.Name))
 }
 
 func (e *VariableExpr) Explain(lookup Lookup) string {
 	if expr, ok := lookup(e.Name); ok {
 		return expr.Explain(lookup)
 	}
-	panic("Undefined variable " + e.Name)
+	return "undef"
 }
 
 func (e *UnaryExpr) String() string {
 	return fmt.Sprintf("(%s %s)", e.OpName, e.Value.String())
 }
 
-func (e *UnaryExpr) Eval(lookup Lookup) int {
-	return e.Operator(e.Value.Eval(lookup))
+func (e *UnaryExpr) Eval(lookup Lookup) (int, error) {
+	value, err := e.Value.Eval(lookup)
+	if err != nil {
+		return 0, err
+	}
+	return e.Operator(value), nil
 }
 
 func (e *UnaryExpr) Explain(lookup Lookup) string {
@@ -150,8 +155,16 @@ func (e *BinaryExpr) String() string {
 	return fmt.Sprintf("(%s %s %s)", e.OpName, e.Left.String(), e.Right.String())
 }
 
-func (e *BinaryExpr) Eval(lookup Lookup) int {
-	return e.Operator(e.Left.Eval(lookup), e.Right.Eval(lookup))
+func (e *BinaryExpr) Eval(lookup Lookup) (int, error) {
+	left, err := e.Left.Eval(lookup)
+	if err != nil {
+		return 0, err
+	}
+	right, err := e.Right.Eval(lookup)
+	if err != nil {
+		return 0, err
+	}
+	return e.Operator(left, right), nil
 }
 
 func (e *BinaryExpr) Explain(lookup Lookup) string {
@@ -162,7 +175,7 @@ func (e *ParenExpr) String() string {
 	return e.Expr.String()
 }
 
-func (e *ParenExpr) Eval(lookup Lookup) int {
+func (e *ParenExpr) Eval(lookup Lookup) (int, error) {
 	return e.Expr.Eval(lookup)
 }
 

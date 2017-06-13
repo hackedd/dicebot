@@ -76,3 +76,9 @@ func ExampleBot_HandleMessage_error2() {
 	//   ^-- Unexpected input
 	// ```
 }
+
+func ExampleBot_HandleMessage_error3() {
+	fmt.Println(bot.HandleMessage("!roll x"))
+	// Output:
+	// Sorry, I don't understand how to parse 'x': Undefined variable `x`
+}

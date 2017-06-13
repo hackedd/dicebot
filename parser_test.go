@@ -68,13 +68,21 @@ func TestParse(t *testing.T) {
 			continue
 		}
 
-		value := actual.Eval(testLookup)
+		value, err := actual.Eval(testLookup)
+		if err != nil {
+			t.Errorf("Evaluating '%s' failed: %s", example.input, err)
+			continue
+		}
 		if value != example.value {
 			t.Errorf("Evaluating '%s' failed: expected %d, got %d", example.input, example.value, value)
 			continue
 		}
 
-		secondValue := actual.Eval(testLookup)
+		secondValue, err := actual.Eval(testLookup)
+		if err != nil {
+			t.Errorf("Evaluating '%s' failed: %s", example.input, err)
+			continue
+		}
 		if secondValue != value {
 			t.Errorf("Evaluating '%s' failed: value changed (%d != %d)", example.input, secondValue, value)
 			continue
@@ -125,6 +133,7 @@ var explainExamples = []explainExample{
 	{"1 * (2 + 3)", "1 * (2 + 3)"},
 	{"a*b", "1 * 2"},
 	{"r+r", "(6 + 4) + (6 + 6)"},
+	{"qux", "undef"},
 }
 
 func TestExplain(t *testing.T) {
