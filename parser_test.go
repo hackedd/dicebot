@@ -1,40 +1,56 @@
 package dicebot
 
 import (
-	"regexp"
-	"strings"
+	"math/rand"
 	"testing"
 )
 
 type parseExample struct {
 	input    string
 	expected string
-	min      int
-	max      int
+	value    int
 }
 
 var parseExamples = []parseExample{
-	{"3d6 + 2", "(+ 3d6 2)", 3*1 + 2, 3*6 + 2},
-	{"1 + 2 + 3", "(+ (+ 1 2) 3)", 6, 6},
-	{"1 + 2 * 3", "(+ 1 (* 2 3))", 7, 7},
-	{"(1 + 2)", "(+ 1 2)", 3, 3},
-	{"1 * (2 + 3)", "(* 1 (+ 2 3))", 5, 5},
-	{"-1 + 2", "(+ (- 1) 2)", 1, 1},
-	{"+-1", "(+ (- 1))", -1, -1},
-	{"10 / 2 - 1", "(- (/ 10 2) 1)", 4, 4},
-	{"d20", "1d20", 1, 20},
-	{"20d6", "20d6", 20 * 1, 20 * 6},
-	{"(1 + 2) + 3", "(+ (+ 1 2) 3)", 6, 6},
-	{"a + b", "(+ a b)", 3, 3},
-	{"c * d6", "(* c 1d6)", 3 * 1, 3 * 6},
+	{"3d6 + 2", "(+ 3d6 2)", 18},
+	{"1 + 2 + 3", "(+ (+ 1 2) 3)", 6},
+	{"1 + 2 * 3", "(+ 1 (* 2 3))", 7},
+	{"(1 + 2)", "(+ 1 2)", 3},
+	{"1 * (2 + 3)", "(* 1 (+ 2 3))", 5},
+	{"-1 + 2", "(+ (- 1) 2)", 1},
+	{"+-1", "(+ (- 1))", -1},
+	{"10 / 2 - 1", "(- (/ 10 2) 1)", 4},
+	{"d20", "1d20", 2},
+	{"20d6", "20d6", 75},
+	{"(1 + 2) + 3", "(+ (+ 1 2) 3)", 6},
+	{"a + b", "(+ a b)", 3},
+	{"c * d6", "(* c 1d6)", 18},
+	{"x", "x", 123},
 }
 
-func testLookup(name string) int {
-	return int(name[0]-'a') + 1
+func testLookup(name string) (Expr, bool) {
+	if name == "r" {
+		return &DiceExpr{Number: 2, Sides: 6}, true
+	}
+	if name == "x" {
+		return &VariableExpr{Name: "y"}, true
+	}
+	if name == "y" {
+		return &VariableExpr{Name: "z"}, true
+	}
+	if name == "z" {
+		return &NumberExpr{Value: 123}, true
+	}
+	if name >= "a" && name <= "c" {
+		return &NumberExpr{Value: int(name[0]-'a') + 1}, true
+	}
+	return nil, false
 }
 
 func TestParse(t *testing.T) {
 	for _, example := range parseExamples {
+		rand.Seed(1)
+
 		tokens, err := Tokenize(example.input)
 		if err != nil {
 			t.Errorf("Tokenizing '%s' failed: %s", example.input, err)
@@ -53,8 +69,8 @@ func TestParse(t *testing.T) {
 		}
 
 		value := actual.Eval(testLookup)
-		if value < example.min || value > example.max {
-			t.Errorf("Evaluating '%s' failed: expected %d <= %d <= %d", example.input, example.min, value, example.max)
+		if value != example.value {
+			t.Errorf("Evaluating '%s' failed: expected %d, got %d", example.input, example.value, value)
 			continue
 		}
 
@@ -101,22 +117,20 @@ type explainExample struct {
 	expected string
 }
 
-func MakeRegexp(expr string) *regexp.Regexp {
-	re := strings.Replace(regexp.QuoteMeta(expr), "N", "\\d+", -1)
-	return regexp.MustCompile("^" + re + "$")
-}
-
 var explainExamples = []explainExample{
-	{"d6", "N"},
-	{"3d6", "(N + N + N)"},
+	{"d6", "6"},
+	{"3d6", "(6 + 4 + 6)"},
 	{"1 + 2", "1 + 2"},
 	{"-5", "-5"},
 	{"1 * (2 + 3)", "1 * (2 + 3)"},
-	{"a*b", "a * b"},
+	{"a*b", "1 * 2"},
+	{"r+r", "(6 + 4) + (6 + 6)"},
 }
 
 func TestExplain(t *testing.T) {
 	for _, example := range explainExamples {
+		rand.Seed(1)
+
 		tokens, err := Tokenize(example.input)
 		if err != nil {
 			t.Errorf("Tokenizing '%s' failed: %s", example.input, err)
@@ -129,14 +143,8 @@ func TestExplain(t *testing.T) {
 			continue
 		}
 
-		actual := expr.Explain()
-
-		if strings.Index(example.expected, "N") != -1 {
-			re := MakeRegexp(example.expected)
-			if !re.MatchString(actual) {
-				t.Errorf("Explaining '%s' failed: %s does not match %s (%s)", example.input, actual, example.expected, re)
-			}
-		} else if actual != example.expected {
+		actual := expr.Explain(testLookup)
+		if actual != example.expected {
 			t.Errorf("Explaining '%s' failed: %s does not match %s", example.input, actual, example.expected)
 		}
 	}

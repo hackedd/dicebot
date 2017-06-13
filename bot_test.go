@@ -42,6 +42,21 @@ func ExampleBot_HandleMessage_save() {
 	// ten => **10**
 }
 
+func ExampleBot_HandleMessage_saveExpr() {
+	rand.Seed(1)
+	fmt.Println(bot.HandleMessage("!roll save 2d6 as r"))
+	fmt.Println(bot.HandleMessage("!roll r+2"))
+	// Output:
+	// Saved **2d6** as `r`
+	// r+2 => **(6 + 4) + 2** => **12**
+}
+
+func ExampleBot_HandleMessage_saveError() {
+	fmt.Println(bot.HandleMessage("!roll save 10"))
+	// Output:
+	// Sorry, I don't understand how to parse 'save 10'
+}
+
 func ExampleBot_HandleMessage_error1() {
 	fmt.Println(bot.HandleMessage("!roll 1.5d6"))
 	// Output:

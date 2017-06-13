@@ -14,11 +14,11 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
-	Vars map[string]int
+	Vars map[string]Expr
 }
 
 func NewBot() *Bot {
-	return &Bot{Vars: make(map[string]int)}
+	return &Bot{Vars: make(map[string]Expr)}
 }
 
 func (bot *Bot) Usage() string {
@@ -28,8 +28,9 @@ func (bot *Bot) Usage() string {
 		"The bot understands addition, subtraction, multiplication, division and brackets."
 }
 
-func (bot *Bot) LookupVariable(name string) int {
-	return bot.Vars[name]
+func (bot *Bot) LookupVariable(name string) (Expr, bool) {
+	expr, ok := bot.Vars[name]
+	return expr, ok
 }
 
 func (bot *Bot) RollDice(input string) string {
@@ -39,7 +40,7 @@ func (bot *Bot) RollDice(input string) string {
 	}
 
 	value := fmt.Sprintf("%d", expr.Eval(bot.LookupVariable))
-	explanation := expr.Explain()
+	explanation := expr.Explain(bot.LookupVariable)
 
 	s := EscapeMarkdown(input) + " => "
 	if input != explanation && value != explanation {
@@ -55,10 +56,8 @@ func (bot *Bot) Save(input, name string) string {
 		return bot.HandleError(input, err)
 	}
 
-	value := expr.Eval(bot.LookupVariable)
-	bot.Vars[name] = value
-
-	return fmt.Sprintf("Saved **%d** as `%s`", value, name)
+	bot.Vars[name] = expr
+	return fmt.Sprintf("Saved **%s** as `%s`", input, name)
 }
 
 func (bot *Bot) HandleError(command string, err error) string {

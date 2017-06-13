@@ -22,12 +22,12 @@ func (parser *Parser) peek() Token {
 	return parser.tokens[parser.position]
 }
 
-type Lookup func(name string) int
+type Lookup func(name string) (Expr, bool)
 
 type Expr interface {
 	String() string
 	Eval(lookup Lookup) int
-	Explain() string
+	Explain(lookup Lookup) string
 }
 
 type NumberExpr struct {
@@ -73,7 +73,7 @@ func (e *NumberExpr) Eval(lookup Lookup) int {
 	return e.Value
 }
 
-func (e *NumberExpr) Explain() string {
+func (e *NumberExpr) Explain(lookup Lookup) string {
 	return e.String()
 }
 
@@ -102,7 +102,7 @@ func (e *DiceExpr) Eval(lookup Lookup) int {
 	return t
 }
 
-func (e *DiceExpr) Explain() string {
+func (e *DiceExpr) Explain(lookup Lookup) string {
 	e.Roll()
 
 	if e.Number == 1 {
@@ -121,11 +121,17 @@ func (e *VariableExpr) String() string {
 }
 
 func (e *VariableExpr) Eval(lookup Lookup) int {
-	return lookup(e.Name)
+	if expr, ok := lookup(e.Name); ok {
+		return expr.Eval(lookup)
+	}
+	panic("Undefined variable " + e.Name)
 }
 
-func (e *VariableExpr) Explain() string {
-	return e.Name
+func (e *VariableExpr) Explain(lookup Lookup) string {
+	if expr, ok := lookup(e.Name); ok {
+		return expr.Explain(lookup)
+	}
+	panic("Undefined variable " + e.Name)
 }
 
 func (e *UnaryExpr) String() string {
@@ -136,8 +142,8 @@ func (e *UnaryExpr) Eval(lookup Lookup) int {
 	return e.Operator(e.Value.Eval(lookup))
 }
 
-func (e *UnaryExpr) Explain() string {
-	return fmt.Sprintf("%s%s", e.OpName, e.Value.Explain())
+func (e *UnaryExpr) Explain(lookup Lookup) string {
+	return fmt.Sprintf("%s%s", e.OpName, e.Value.Explain(lookup))
 }
 
 func (e *BinaryExpr) String() string {
@@ -148,8 +154,8 @@ func (e *BinaryExpr) Eval(lookup Lookup) int {
 	return e.Operator(e.Left.Eval(lookup), e.Right.Eval(lookup))
 }
 
-func (e *BinaryExpr) Explain() string {
-	return fmt.Sprintf("%s %s %s", e.Left.Explain(), e.OpName, e.Right.Explain())
+func (e *BinaryExpr) Explain(lookup Lookup) string {
+	return fmt.Sprintf("%s %s %s", e.Left.Explain(lookup), e.OpName, e.Right.Explain(lookup))
 }
 
 func (e *ParenExpr) String() string {
@@ -160,8 +166,8 @@ func (e *ParenExpr) Eval(lookup Lookup) int {
 	return e.Expr.Eval(lookup)
 }
 
-func (e *ParenExpr) Explain() string {
-	return fmt.Sprintf("(%s)", e.Expr.Explain())
+func (e *ParenExpr) Explain(lookup Lookup) string {
+	return fmt.Sprintf("(%s)", e.Expr.Explain(lookup))
 }
 
 type nudFunc func(parser *Parser, token Token) (Expr, error)
