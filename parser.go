@@ -42,7 +42,8 @@ type DiceExpr struct {
 }
 
 type VariableExpr struct {
-	Name string
+	Name  string
+	Value Expr
 }
 
 type UnaryFunc func(value int) int
@@ -121,16 +122,31 @@ func (e *VariableExpr) String() string {
 	return e.Name
 }
 
-func (e *VariableExpr) Eval(lookup Lookup) (int, error) {
-	if expr, ok := lookup(e.Name); ok {
-		return expr.Eval(lookup)
+func (e *VariableExpr) Lookup(lookup Lookup) error {
+	if e.Value != nil {
+		return nil
 	}
-	return 0, errors.New(fmt.Sprintf("Undefined variable `%s`", e.Name))
+
+	if expr, ok := lookup(e.Name); ok {
+		e.Value = expr
+		return nil
+	}
+
+	return errors.New(fmt.Sprintf("Undefined variable `%s`", e.Name))
+}
+
+func (e *VariableExpr) Eval(lookup Lookup) (int, error) {
+	err := e.Lookup(lookup)
+	if err == nil {
+		return e.Value.Eval(lookup)
+	}
+	return 0, err
 }
 
 func (e *VariableExpr) Explain(lookup Lookup) string {
-	if expr, ok := lookup(e.Name); ok {
-		return expr.Explain(lookup)
+	err := e.Lookup(lookup)
+	if err == nil {
+		return e.Value.Explain(lookup)
 	}
 	return "undef"
 }
@@ -242,7 +258,7 @@ func diceNud(parser *Parser, token Token) (Expr, error) {
 }
 
 func identifierNud(parser *Parser, token Token) (Expr, error) {
-	return &VariableExpr{token.Text}, nil
+	return &VariableExpr{Name: token.Text}, nil
 }
 
 func prefixNud(operator UnaryFunc) nudFunc {

@@ -14,11 +14,11 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
-	Vars map[string]Expr
+	Vars map[string]string
 }
 
 func NewBot() *Bot {
-	return &Bot{Vars: make(map[string]Expr)}
+	return &Bot{Vars: make(map[string]string)}
 }
 
 func (bot *Bot) Usage() string {
@@ -29,8 +29,17 @@ func (bot *Bot) Usage() string {
 }
 
 func (bot *Bot) LookupVariable(name string) (Expr, bool) {
-	expr, ok := bot.Vars[name]
-	return expr, ok
+	saved, ok := bot.Vars[name]
+	if !ok {
+		return nil, false
+	}
+
+	expr, err := ParseString(saved)
+	if err != nil {
+		return nil, false
+	}
+
+	return expr, true
 }
 
 func (bot *Bot) RollDice(input string) string {
@@ -56,12 +65,12 @@ func (bot *Bot) RollDice(input string) string {
 }
 
 func (bot *Bot) Save(input, name string) string {
-	expr, err := ParseString(input)
+	_, err := ParseString(input)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
 
-	bot.Vars[name] = expr
+	bot.Vars[name] = input
 	return fmt.Sprintf("Saved **%s** as `%s`", input, name)
 }
 
