@@ -3,9 +3,23 @@ package dicebot
 import (
 	"fmt"
 	"math/rand"
+	"os"
+	"testing"
 )
 
-var bot = NewBot()
+var bot *Bot
+
+func TestMain(m *testing.M) {
+	var err error
+
+	bot, err = NewBot("test.db")
+	if err != nil {
+		fmt.Printf("Unable to open database: %s\n", err)
+		os.Exit(1)
+	}
+
+	os.Exit(m.Run())
+}
 
 func ExampleEscapeMarkdown() {
 	fmt.Println(EscapeMarkdown("1 * 2 + `a`"))

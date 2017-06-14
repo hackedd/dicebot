@@ -12,7 +12,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var bot = dicebot.NewBot()
+var bot *dicebot.Bot
 
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Print("Received ready event")
@@ -46,6 +46,12 @@ func run(context *cli.Context) error {
 	token := context.String("token")
 	if token == "" {
 		return cli.NewExitError("Authentication token is required.", 1)
+	}
+
+	var err error
+	bot, err = dicebot.NewBot(context.String("database"))
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("Unable to open database: %s", err), 1)
 	}
 
 	discord, err := discordgo.New("Bot " + token)
@@ -113,6 +119,11 @@ func main() {
 			Name:  "log-level",
 			Usage: "Log level (error, warning, info or debug)",
 			Value: "error",
+		},
+		cli.StringFlag{
+			Name:  "database",
+			Usage: "Database filename",
+			Value: "dicebot.db",
 		},
 	}
 

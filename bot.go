@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/boltdb/bolt"
 )
 
 func EscapeMarkdown(input string) string {
@@ -14,11 +17,24 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
-	Vars map[string]string
+	db *bolt.DB
 }
 
-func NewBot() *Bot {
-	return &Bot{Vars: make(map[string]string)}
+func NewBot(dbFile string) (*Bot, error) {
+	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("vars"))
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Bot{db: db}, nil
 }
 
 func (bot *Bot) Usage() string {
@@ -29,12 +45,18 @@ func (bot *Bot) Usage() string {
 }
 
 func (bot *Bot) LookupVariable(name string) (Expr, bool) {
-	saved, ok := bot.Vars[name]
-	if !ok {
+	var v []byte
+
+	err := bot.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("vars"))
+		v = b.Get([]byte(name))
+		return nil
+	})
+	if err != nil || v == nil {
 		return nil, false
 	}
 
-	expr, err := ParseString(saved)
+	expr, err := ParseString(string(v))
 	if err != nil {
 		return nil, false
 	}
@@ -70,7 +92,16 @@ func (bot *Bot) Save(input, name string) string {
 		return bot.HandleError(input, err)
 	}
 
-	bot.Vars[name] = input
+	err = bot.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("vars"))
+		err := b.Put([]byte(name), []byte(input))
+		return err
+	})
+
+	if err != nil {
+		return bot.HandleError(input, err)
+	}
+
 	return fmt.Sprintf("Saved **%s** as `%s`", input, name)
 }
 
