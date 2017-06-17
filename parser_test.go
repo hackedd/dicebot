@@ -1,6 +1,8 @@
 package dicebot
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -28,23 +30,23 @@ var parseExamples = []parseExample{
 	{"x", "x", 123},
 }
 
-func testLookup(name string) (Expr, bool) {
+func testLookup(name string) (Expr, error) {
 	if name == "r" {
-		return &DiceExpr{Number: 2, Sides: 6}, true
+		return &DiceExpr{Number: 2, Sides: 6}, nil
 	}
 	if name == "x" {
-		return &VariableExpr{Name: "y"}, true
+		return &VariableExpr{Name: "y"}, nil
 	}
 	if name == "y" {
-		return &VariableExpr{Name: "z"}, true
+		return &VariableExpr{Name: "z"}, nil
 	}
 	if name == "z" {
-		return &NumberExpr{Value: 123}, true
+		return &NumberExpr{Value: 123}, nil
 	}
 	if name >= "a" && name <= "c" {
-		return &NumberExpr{Value: int(name[0]-'a') + 1}, true
+		return &NumberExpr{Value: int(name[0]-'a') + 1}, nil
 	}
-	return nil, false
+	return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
 }
 
 func TestParse(t *testing.T) {

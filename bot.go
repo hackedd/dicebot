@@ -1,6 +1,7 @@
 package dicebot
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -44,7 +45,7 @@ func (bot *Bot) Usage() string {
 		"The bot understands addition, subtraction, multiplication, division and brackets."
 }
 
-func (bot *Bot) LookupVariable(name string) (Expr, bool) {
+func (bot *Bot) LookupVariable(name string) (Expr, error) {
 	var v []byte
 
 	err := bot.db.View(func(tx *bolt.Tx) error {
@@ -52,16 +53,19 @@ func (bot *Bot) LookupVariable(name string) (Expr, bool) {
 		v = b.Get([]byte(name))
 		return nil
 	})
-	if err != nil || v == nil {
-		return nil, false
+	if err != nil {
+		return nil, err
+	}
+	if v == nil {
+		return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
 	}
 
 	expr, err := ParseString(string(v))
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
 
-	return expr, true
+	return expr, nil
 }
 
 func (bot *Bot) RollDice(input string) string {

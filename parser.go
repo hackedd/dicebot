@@ -1,7 +1,6 @@
 package dicebot
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -23,7 +22,7 @@ func (parser *Parser) peek() Token {
 	return parser.tokens[parser.position]
 }
 
-type Lookup func(name string) (Expr, bool)
+type Lookup func(name string) (Expr, error)
 
 type Expr interface {
 	String() string
@@ -127,12 +126,13 @@ func (e *VariableExpr) Lookup(lookup Lookup) error {
 		return nil
 	}
 
-	if expr, ok := lookup(e.Name); ok {
-		e.Value = expr
-		return nil
+	expr, err := lookup(e.Name)
+	if err != nil {
+		return err
 	}
 
-	return errors.New(fmt.Sprintf("Undefined variable `%s`", e.Name))
+	e.Value = expr
+	return nil
 }
 
 func (e *VariableExpr) Eval(lookup Lookup) (int, error) {
