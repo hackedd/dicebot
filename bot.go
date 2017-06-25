@@ -27,14 +27,6 @@ func NewBot(dbFile string) (*Bot, error) {
 		return nil, err
 	}
 
-	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("vars"))
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	return &Bot{db: db}, nil
 }
 
@@ -45,12 +37,19 @@ func (bot *Bot) Usage() string {
 		"The bot understands addition, subtraction, multiplication, division and brackets."
 }
 
-func (bot *Bot) LookupVariable(name string) (Expr, error) {
+func (bot *Bot) LookupVariable(name, userId, channelId, serverId string) (Expr, error) {
 	var v []byte
 
 	err := bot.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("vars"))
-		v = b.Get([]byte(name))
+		for _, bucketName := range []string{"user-" + userId, "channel-" + channelId, "server-" + serverId} {
+			b := tx.Bucket([]byte(bucketName))
+			if b != nil {
+				v = b.Get([]byte(name))
+				if v != nil {
+					break
+				}
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -68,19 +67,23 @@ func (bot *Bot) LookupVariable(name string) (Expr, error) {
 	return expr, nil
 }
 
-func (bot *Bot) RollDice(input string) string {
+func (bot *Bot) RollDice(input, userId, channelId, serverId string) string {
 	expr, err := ParseString(input)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
 
-	v, err := expr.Eval(bot.LookupVariable)
+	lookup := func(name string) (Expr, error) {
+		return bot.LookupVariable(name, userId, channelId, serverId)
+	}
+
+	v, err := expr.Eval(lookup)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
 
 	value := fmt.Sprintf("%d", v)
-	explanation := expr.Explain(bot.LookupVariable)
+	explanation := expr.Explain(lookup)
 
 	s := EscapeMarkdown(input) + " => "
 	if input != explanation && value != explanation {
@@ -90,16 +93,18 @@ func (bot *Bot) RollDice(input string) string {
 	return s
 }
 
-func (bot *Bot) Save(input, name string) string {
+func (bot *Bot) Save(input, name, scope string) string {
 	_, err := ParseString(input)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
 
 	err = bot.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("vars"))
-		err := b.Put([]byte(name), []byte(input))
-		return err
+		b, err := tx.CreateBucketIfNotExists([]byte(scope))
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(name), []byte(input))
 	})
 
 	if err != nil {
@@ -123,7 +128,7 @@ func (bot *Bot) HandleError(command string, err error) string {
 	return s + ": " + err.Error()
 }
 
-func (bot *Bot) HandleMessage(msg string) string {
+func (bot *Bot) HandleMessage(msg, serverId, channelId, userId string) string {
 	idx := strings.Index(msg, "!roll")
 	if idx != 0 {
 		return ""
@@ -135,14 +140,26 @@ func (bot *Bot) HandleMessage(msg string) string {
 	}
 
 	if strings.Index(command, "save") == 0 {
-		r := regexp.MustCompile(`\Asave\s+(.*)\s+as\s+(\w+)\z`)
+		r := regexp.MustCompile(`\Asave\s+(.*)\s+as\s+(\w+)(\s+for\s+(\w+))?\z`)
 		match := r.FindStringSubmatch(command)
 		if match == nil {
 			return bot.HandleError(command, nil)
 		}
 
-		return bot.Save(match[1], match[2])
+		scope := ""
+		switch match[4] {
+		case "server":
+			scope = "server-" + serverId
+		case "channel":
+			scope = "channel-" + channelId
+		case "", "me", "user":
+			scope = "user-" + userId
+		default:
+			return bot.HandleError(command, errors.New("Undefined scope "+match[4]))
+		}
+
+		return bot.Save(match[1], match[2], scope)
 	}
 
-	return bot.RollDice(command)
+	return bot.RollDice(command, userId, channelId, serverId)
 }

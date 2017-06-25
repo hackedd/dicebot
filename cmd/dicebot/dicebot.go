@@ -36,7 +36,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 
 	log.Printf("Received message: %s", msg)
 
-	response := bot.HandleMessage(msg)
+	channel, err := s.Channel(m.ChannelID)
+	if err != nil {
+		log.Printf("Unable to retreive channel info for %s: %s", m.ChannelID, err)
+		channel = &discordgo.Channel{GuildID: "unknown"}
+	}
+
+	response := bot.HandleMessage(msg, channel.GuildID, m.ChannelID, m.Author.ID)
 	if response != "" {
 		s.ChannelMessageSend(m.ChannelID, response)
 	}
