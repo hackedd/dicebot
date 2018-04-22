@@ -53,6 +53,23 @@ func run(context *cli.Context) error {
 		return cli.NewExitError(fmt.Sprintf("Unable to create Discord session: %s", err), 1)
 	}
 
+	switch context.String("log-level") {
+	case "error":
+		discord.LogLevel = discordgo.LogError
+		break
+	case "warning":
+		discord.LogLevel = discordgo.LogWarning
+		break
+	case "info":
+		discord.LogLevel = discordgo.LogInformational
+		break
+	case "debug":
+		discord.LogLevel = discordgo.LogDebug
+		break
+	default:
+		return cli.NewExitError(fmt.Sprintf("Unknown log level '%s'", context.String("log-level")), 1)
+	}
+
 	discord.ShardID = context.Int("shard")
 	discord.ShardCount = context.Int("num-shards")
 
@@ -91,6 +108,11 @@ func main() {
 			Name:  "num-shards",
 			Usage: "Number of shards",
 			Value: 1,
+		},
+		cli.StringFlag{
+			Name:  "log-level",
+			Usage: "Log level (error, warning, info or debug)",
+			Value: "error",
 		},
 	}
 
