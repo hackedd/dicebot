@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/boltdb/bolt"
 )
 
 func EscapeMarkdown(input string) string {
@@ -18,11 +15,11 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
-	db *bolt.DB
+	db Database
 }
 
 func NewBot(dbFile string) (*Bot, error) {
-	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := NewJsonDatabase(dbFile)
 	if err != nil {
 		return nil, err
 	}
@@ -38,33 +35,14 @@ func (bot *Bot) Usage() string {
 }
 
 func (bot *Bot) LookupVariable(name, userId, channelId, serverId string) (Expr, error) {
-	var v []byte
-
-	err := bot.db.View(func(tx *bolt.Tx) error {
-		for _, bucketName := range []string{"user-" + userId, "channel-" + channelId, "server-" + serverId} {
-			b := tx.Bucket([]byte(bucketName))
-			if b != nil {
-				v = b.Get([]byte(name))
-				if v != nil {
-					break
-				}
-			}
+	for _, scope := range []string{"user-" + userId, "channel-" + channelId, "server-" + serverId} {
+		value, found := bot.db.ReadValue(name, scope)
+		if found {
+			return ParseString(value)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if v == nil {
-		return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
 	}
 
-	expr, err := ParseString(string(v))
-	if err != nil {
-		return nil, err
-	}
-
-	return expr, nil
+	return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
 }
 
 func (bot *Bot) RollDice(input, userId, channelId, serverId string) string {
@@ -99,14 +77,7 @@ func (bot *Bot) Save(input, name, scope string) string {
 		return bot.HandleError(input, err)
 	}
 
-	err = bot.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(scope))
-		if err != nil {
-			return err
-		}
-		return b.Put([]byte(name), []byte(input))
-	})
-
+	err = bot.db.StoreValue(name, scope, input)
 	if err != nil {
 		return bot.HandleError(input, err)
 	}
