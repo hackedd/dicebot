@@ -3,30 +3,11 @@ package dicebot
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"testing"
 )
 
-const testDb = "test.db"
-
-var bot *Bot
-
-func TestMain(m *testing.M) {
-	var err error
-
-	if _, err := os.Stat(testDb); err == nil {
-		os.Remove(testDb)
-	} else if !os.IsNotExist(err) {
-		panic(err)
-	}
-
-	bot, err = NewBot(testDb)
-	if err != nil {
-		fmt.Printf("Unable to open database: %s\n", err)
-		os.Exit(1)
-	}
-
-	os.Exit(m.Run())
+var bot = &Bot{
+	db: &JsonDatabase{},
 }
 
 func handleMessage(msg string) string {
