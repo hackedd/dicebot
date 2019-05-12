@@ -60,15 +60,15 @@ func ExampleBot_MakeMove_error() {
 	// Output:
 	// Player makes a move: Move!
 	// When you do a thing, roll+Str.
-	// Sorry, I don't understand how to parse '2d6+Str': Undefined variable `Str`
+	// Sorry, I don't understand how to parse '2d6+Str': undefined variable `Str`
 }
 
 func ExampleBot_MakeMove_hit() {
 	rand.Seed(1)
 
-	err := botWithMoves.db.StoreValue("Str", "user-user", "1")
+	err := botWithMoves.db.StoreValue("str", "user-user", "1")
 	if err != nil {
-		log.Fatalf("StoreValue(Str): %v", err)
+		log.Fatalf("StoreValue(str): %v", err)
 	}
 
 	fmt.Println(botWithMoves.MakeMove(context, "Move"))
@@ -82,9 +82,9 @@ func ExampleBot_MakeMove_hit() {
 func ExampleBot_MakeMove_pass() {
 	rand.Seed(1)
 
-	err := botWithMoves.db.StoreValue("Str", "user-user", "-1")
+	err := botWithMoves.db.StoreValue("str", "user-user", "-1")
 	if err != nil {
-		log.Fatalf("StoreValue(Str): %v", err)
+		log.Fatalf("StoreValue(str): %v", err)
 	}
 
 	fmt.Println(botWithMoves.MakeMove(context, "Move"))
@@ -98,9 +98,9 @@ func ExampleBot_MakeMove_pass() {
 func ExampleBot_MakeMove_miss() {
 	rand.Seed(1)
 
-	err := botWithMoves.db.StoreValue("Str", "user-user", "-4")
+	err := botWithMoves.db.StoreValue("str", "user-user", "-4")
 	if err != nil {
-		log.Fatalf("StoreValue(Str): %v", err)
+		log.Fatalf("StoreValue(str): %v", err)
 	}
 
 	fmt.Println(botWithMoves.MakeMove(context, "Move"))

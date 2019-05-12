@@ -50,13 +50,13 @@ func (bot *Bot) Usage() string {
 
 func (bot *Bot) LookupVariable(context MessageContext, name string) (Expr, error) {
 	for _, scope := range []string{"user-" + context.UserId, "channel-" + context.ChannelId, "server-" + context.ServerId} {
-		value, found := bot.db.ReadValue(name, scope)
+		value, found := bot.db.ReadValue(strings.ToLower(name), scope)
 		if found {
 			return ParseString(value)
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
+	return nil, errors.New(fmt.Sprintf("undefined variable `%s`", name))
 }
 
 func (bot *Bot) Eval(context MessageContext, input string) (value int, explanation string, err error) {
@@ -117,7 +117,7 @@ func (bot *Bot) Save(context MessageContext, input, name, for_ string) error {
 		return errors.New("undefined scope " + for_)
 	}
 
-	return bot.db.StoreValue(name, scope, input)
+	return bot.db.StoreValue(strings.ToLower(name), scope, input)
 }
 
 func (bot *Bot) HandleError(command string, err error) string {

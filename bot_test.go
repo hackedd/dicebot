@@ -67,6 +67,18 @@ func ExampleBot_HandleMessage_saveExpr() {
 	// r+2 => **(6 + 6) + 2** => **14**
 }
 
+func ExampleBot_HandleMessage_saveCase() {
+	fmt.Println(handleMessage("!save 10 as ten"))
+	fmt.Println(handleMessage("!roll TEN"))
+	fmt.Println(handleMessage("!save 5 as FIVE"))
+	fmt.Println(handleMessage("!roll five"))
+	// Output:
+	// Saved **10** as `ten`
+	// TEN => **10**
+	// Saved **5** as `FIVE`
+	// five => **5**
+}
+
 func ExampleBot_HandleMessage_saveFor() {
 	fmt.Println(handleMessage("!save 5 as five for channel"))
 	fmt.Println(handleMessage("!save 6 as six for server"))
@@ -97,7 +109,7 @@ func TestBot_LookupVariable_Scope(t *testing.T) {
 	otherChannelContext.ChannelId = "another-channel"
 
 	_, err = bot.LookupVariable(otherUserContext, "v1")
-	if err == nil || err.Error() != "Undefined variable `v1`" {
+	if err == nil || err.Error() != "undefined variable `v1`" {
 		t.Errorf("Unexpected error looking up variable: %s", err)
 	}
 
@@ -111,7 +123,7 @@ func TestBot_LookupVariable_Scope(t *testing.T) {
 		t.Errorf("Unexpected error looking up variable: %s", err)
 	}
 	_, err = bot.LookupVariable(otherChannelContext, "v2")
-	if err == nil || err.Error() != "Undefined variable `v2`" {
+	if err == nil || err.Error() != "undefined variable `v2`" {
 		t.Errorf("Unexpected error looking up variable: %s", err)
 	}
 }
@@ -139,7 +151,7 @@ func ExampleBot_HandleMessage_error2() {
 func ExampleBot_HandleMessage_error3() {
 	fmt.Println(handleMessage("!roll x"))
 	// Output:
-	// Sorry, I don't understand how to parse 'x': Undefined variable `x`
+	// Sorry, I don't understand how to parse 'x': undefined variable `x`
 }
 
 func TestBot_HandleMessage_IgnoreUnknown(t *testing.T) {
