@@ -2,6 +2,7 @@ package dicebot
 
 import (
 	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -71,6 +72,23 @@ func TestJsonDatabase_StoreValue(t *testing.T) {
 	}
 }
 
+func WriteTempFile(t *testing.T, template, contents string) string {
+	file, err := ioutil.TempFile("", template)
+	if err != nil {
+		t.Fatalf("Unable to create temporary file %v: %v", template, err)
+	}
+
+	if _, err := file.Write([]byte(contents)); err != nil {
+		t.Fatalf("Unable to write temporary file %v: %v", template, err)
+	}
+
+	if err := file.Close(); err != nil {
+		t.Fatalf("Unable to close temporary file %v: %v", template, err)
+	}
+
+	return file.Name()
+}
+
 func TestNewJsonDatabase(t *testing.T) {
 	json := `[
   {
@@ -81,12 +99,11 @@ func TestNewJsonDatabase(t *testing.T) {
     ]
   }
 ]`
-	err := ioutil.WriteFile("test.json", []byte(json), 0644)
-	if err != nil {
-		t.Fatalf("Unable to write test.json: %v", err)
-	}
 
-	db, err := NewJsonDatabase("test.json")
+	filename := WriteTempFile(t, "test*.json", json)
+	defer os.Remove(filename)
+
+	db, err := NewJsonDatabase(filename)
 	if err != nil {
 		t.Fatalf("NewJsonDatabase(): %v", err)
 	}
@@ -105,8 +122,11 @@ func TestNewJsonDatabaseEmpty(t *testing.T) {
 }
 
 func TestJsonDatabase_StoreValueSaves(t *testing.T) {
+	filename := WriteTempFile(t, "test*.json", "")
+	defer os.Remove(filename)
+
 	db := &JsonDatabase{
-		filename: "test.json",
+		filename: filename,
 	}
 	err := db.StoreValue("a", "test", "1")
 	if err != nil {

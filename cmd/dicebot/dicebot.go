@@ -32,7 +32,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 		return
 	}
 
-	msg := strings.Replace(m.ContentWithMentionsReplaced(), s.State.Ready.User.Username, "username", 1)
+	msg := strings.Replace(m.ContentWithMentionsReplaced(), s.State.User.Username, "username", 1)
 
 	log.Printf("Received message: %s", msg)
 
@@ -42,9 +42,19 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 		channel = &discordgo.Channel{GuildID: "unknown"}
 	}
 
-	response := bot.HandleMessage(msg, channel.GuildID, m.ChannelID, m.Author.ID)
+	context := dicebot.MessageContext{
+		UserId:    m.Author.ID,
+		UserName:  m.Author.Username,
+		ChannelId: m.ChannelID,
+		ServerId:  channel.GuildID,
+	}
+
+	response := bot.HandleMessage(context, msg)
 	if response != "" {
-		s.ChannelMessageSend(m.ChannelID, response)
+		_, err = s.ChannelMessageSend(m.ChannelID, response)
+		if err != nil {
+			log.Printf("Unable to send message to %s: %s", m.ChannelID, err)
+		}
 	}
 }
 
@@ -58,6 +68,13 @@ func run(context *cli.Context) error {
 	bot, err = dicebot.NewBot(context.String("database"))
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("Unable to open database: %s", err), 1)
+	}
+
+	for _, filename := range context.StringSlice("moves") {
+		err = bot.LoadMoves(filename)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("Unable to load moves from %s: %s", filename, err), 1)
+		}
 	}
 
 	discord, err := discordgo.New("Bot " + token)
@@ -129,7 +146,11 @@ func main() {
 		cli.StringFlag{
 			Name:  "database",
 			Usage: "Database filename",
-			Value: "dicebot.db",
+			Value: "dicebot.json",
+		},
+		cli.StringSliceFlag{
+			Name:  "moves",
+			Usage: "Load moves from file",
 		},
 	}
 

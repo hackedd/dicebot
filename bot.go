@@ -15,7 +15,15 @@ func EscapeMarkdown(input string) string {
 }
 
 type Bot struct {
-	db Database
+	db    Database
+	moves map[string]Move
+}
+
+type MessageContext struct {
+	UserId    string
+	UserName  string
+	ChannelId string
+	ServerId  string
 }
 
 func NewBot(dbFile string) (*Bot, error) {
@@ -24,18 +32,24 @@ func NewBot(dbFile string) (*Bot, error) {
 		return nil, err
 	}
 
-	return &Bot{db: db}, nil
+	return &Bot{db: db, moves: make(map[string]Move)}, nil
+}
+
+func (bot *Bot) LoadMoves(filename string) error {
+	return LoadMoves(bot.moves, filename)
 }
 
 func (bot *Bot) Usage() string {
 	return "Type `!roll d<x>` to roll a *x*-sided die\n" +
 		"Type `!roll <n>d<x>` to roll any number of *x*-sided dice (`!roll 3d6` rolls three regular six-sided dice)\n" +
 		"You can use simple mathematical expressions too. For example, `d20 + 4` rolls a twenty-sided dice and adds four to the result.\n" +
-		"The bot understands addition, subtraction, multiplication, division and brackets."
+		"The bot understands addition, subtraction, multiplication, division and brackets.\n" +
+		"Type `!save <expr> as <name>` to save an expression. For example you could `!save 2d6+1 as str` and use `!roll str` later.\n" +
+		"Type `!move` to get a list of moves, and `!move <name>` to make a move."
 }
 
-func (bot *Bot) LookupVariable(name, userId, channelId, serverId string) (Expr, error) {
-	for _, scope := range []string{"user-" + userId, "channel-" + channelId, "server-" + serverId} {
+func (bot *Bot) LookupVariable(context MessageContext, name string) (Expr, error) {
+	for _, scope := range []string{"user-" + context.UserId, "channel-" + context.ChannelId, "server-" + context.ServerId} {
 		value, found := bot.db.ReadValue(name, scope)
 		if found {
 			return ParseString(value)
@@ -45,44 +59,65 @@ func (bot *Bot) LookupVariable(name, userId, channelId, serverId string) (Expr, 
 	return nil, errors.New(fmt.Sprintf("Undefined variable `%s`", name))
 }
 
-func (bot *Bot) RollDice(input, userId, channelId, serverId string) string {
+func (bot *Bot) Eval(context MessageContext, input string) (value int, explanation string, err error) {
 	expr, err := ParseString(input)
 	if err != nil {
-		return bot.HandleError(input, err)
+		return
 	}
 
 	lookup := func(name string) (Expr, error) {
-		return bot.LookupVariable(name, userId, channelId, serverId)
+		return bot.LookupVariable(context, name)
 	}
 
-	v, err := expr.Eval(lookup)
+	value, err = expr.Eval(lookup)
 	if err != nil {
-		return bot.HandleError(input, err)
+		return
 	}
 
-	value := fmt.Sprintf("%d", v)
-	explanation := expr.Explain(lookup)
+	explanation = expr.Explain(lookup)
+	return
+}
+
+func (bot *Bot) FormatResult(input string, value int, explanation string) string {
+	result := fmt.Sprintf("%d", value)
 
 	s := EscapeMarkdown(input) + " => "
-	if input != explanation && value != explanation {
+	if input != explanation && result != explanation {
 		s += "**" + EscapeMarkdown(explanation) + "** => "
 	}
-	s += "**" + EscapeMarkdown(value) + "**"
+	s += "**" + EscapeMarkdown(result) + "**"
 	return s
 }
 
-func (bot *Bot) Save(input, name, scope string) string {
+func (bot *Bot) RollDice(context MessageContext, input string) string {
+	value, explanation, err := bot.Eval(context, input)
+
+	if err != nil {
+		return bot.HandleError(input, err)
+	}
+
+	return bot.FormatResult(input, value, explanation)
+}
+
+func (bot *Bot) Save(context MessageContext, input, name, for_ string) error {
 	_, err := ParseString(input)
 	if err != nil {
-		return bot.HandleError(input, err)
+		return err
 	}
 
-	err = bot.db.StoreValue(name, scope, input)
-	if err != nil {
-		return bot.HandleError(input, err)
+	scope := ""
+	switch for_ {
+	case "server":
+		scope = "server-" + context.ServerId
+	case "channel":
+		scope = "channel-" + context.ChannelId
+	case "", "me", "user":
+		scope = "user-" + context.UserId
+	default:
+		return errors.New("undefined scope " + for_)
 	}
 
-	return fmt.Sprintf("Saved **%s** as `%s`", input, name)
+	return bot.db.StoreValue(name, scope, input)
 }
 
 func (bot *Bot) HandleError(command string, err error) string {
@@ -99,38 +134,40 @@ func (bot *Bot) HandleError(command string, err error) string {
 	return s + ": " + err.Error()
 }
 
-func (bot *Bot) HandleMessage(msg, serverId, channelId, userId string) string {
-	idx := strings.Index(msg, "!roll")
-	if idx != 0 {
-		return ""
-	}
-
-	command := strings.TrimSpace(msg[idx+5:])
-	if command == "" || command == "help" {
+func (bot *Bot) HandleMessage(context MessageContext, msg string) string {
+	msg = strings.TrimSpace(msg)
+	if msg == "!roll" || msg == "!roll help" || msg == "!save" || msg == "!save help" {
 		return bot.Usage()
 	}
 
-	if strings.Index(command, "save") == 0 {
-		r := regexp.MustCompile(`\Asave\s+(.*)\s+as\s+(\w+)(\s+for\s+(\w+))?\z`)
-		match := r.FindStringSubmatch(command)
-		if match == nil {
-			return bot.HandleError(command, nil)
-		}
-
-		scope := ""
-		switch match[4] {
-		case "server":
-			scope = "server-" + serverId
-		case "channel":
-			scope = "channel-" + channelId
-		case "", "me", "user":
-			scope = "user-" + userId
-		default:
-			return bot.HandleError(command, errors.New("Undefined scope "+match[4]))
-		}
-
-		return bot.Save(match[1], match[2], scope)
+	if strings.Index(msg, "!roll ") == 0 {
+		return bot.RollDice(context, strings.TrimSpace(msg[6:]))
 	}
 
-	return bot.RollDice(command, userId, channelId, serverId)
+	if strings.Index(msg, "!save ") == 0 {
+		r := regexp.MustCompile(`\A!save\s+(.*)\s+as\s+(\w+)(\s+for\s+(\w+))?\z`)
+		match := r.FindStringSubmatch(msg)
+		if match == nil {
+			return bot.HandleError(msg[1:], nil)
+		}
+		err := bot.Save(context, match[1], match[2], match[4])
+		if err != nil {
+			return bot.HandleError(msg[1:], err)
+		}
+		return fmt.Sprintf("Saved **%s** as `%s`", match[1], match[2])
+	}
+
+	if msg == "!move" {
+		response := "I know the following moves:\n"
+		for _, move := range bot.moves {
+			response += " * " + EscapeMarkdown(move.Name) + "\n"
+		}
+		return response
+	}
+
+	if strings.Index(msg, "!move ") == 0 {
+		return bot.MakeMove(context, strings.TrimSpace(msg[6:]))
+	}
+
+	return ""
 }
