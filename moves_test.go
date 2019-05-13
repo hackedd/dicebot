@@ -19,6 +19,7 @@ var botWithMoves = &Bot{
 			Roll:        "2d6+Str",
 			Hit:         "You successfully did the thing!",
 			Pass:        "You did the thing, but something bad happens.",
+			Miss:        "The thing went terribly wrong.",
 		},
 	},
 }
@@ -30,7 +31,8 @@ func TestLoadMoves(t *testing.T) {
     "description": "When you do a thing, roll+Str.",
     "roll": "2d6+Str",
     "hit": "You successfully did the thing!",
-    "pass": "You did the thing, but something bad happens."
+    "pass": "You did the thing, but something bad happens.",
+    "miss": "The thing went terribly wrong."
   }
 ]
 `
@@ -108,6 +110,52 @@ func ExampleBot_MakeMove_miss() {
 	// Player makes a move: Move!
 	// When you do a thing, roll+Str.
 	// 2d6+Str => **(6 + 4) + -4** => **6**
+	// The thing went terribly wrong. Mark XP.
+}
+
+func ExampleBot_MakeMove_noRoll() {
+	bot := &Bot{
+		db: &JsonDatabase{},
+		moves: map[string]Move{
+			"move": {
+				Name:        "Move",
+				Description: "When you do a thing, roll some dice.",
+				Roll:        "",
+				Hit:         "",
+				Pass:        "",
+				Miss:        "",
+			},
+		},
+	}
+
+	fmt.Println(bot.MakeMove(context, "Move"))
+	// Output:
+	// Player makes a move: Move!
+	// When you do a thing, roll some dice.
+}
+
+func ExampleBot_MakeMove_noOutcomes() {
+	rand.Seed(1)
+
+	bot := &Bot{
+		db: &JsonDatabase{},
+		moves: map[string]Move{
+			"move": {
+				Name:        "Move",
+				Description: "When you do a thing, roll some dice.",
+				Roll:        "2d6",
+				Hit:         "",
+				Pass:        "",
+				Miss:        "",
+			},
+		},
+	}
+
+	fmt.Println(bot.MakeMove(context, "Move"))
+	// Output:
+	// Player makes a move: Move!
+	// When you do a thing, roll some dice.
+	// 2d6 => **(6 + 4)** => **10**
 }
 
 func TestBot_HandleMessage_move(t *testing.T) {

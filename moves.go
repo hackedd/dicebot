@@ -14,6 +14,7 @@ type Move struct {
 	Roll        string `json:"roll"`
 	Hit         string `json:"hit"`
 	Pass        string `json:"pass"`
+	Miss        string `json:"miss"`
 }
 
 func LoadMoves(moves map[string]Move, filename string) error {
@@ -52,10 +53,17 @@ func (bot *Bot) MakeMove(context MessageContext, moveName string) (output string
 
 		output += bot.FormatResult(move.Roll, value, explanation) + "\n"
 
-		if value >= 10 {
+		if value >= 10 && move.Hit != "" {
 			output += move.Hit + "\n"
-		} else if value >= 7 {
+		}
+		if value >= 7 && value <= 9 && move.Pass != "" {
 			output += move.Pass + "\n"
+		}
+		if value < 7 {
+			if move.Miss != "" {
+				output += move.Miss + " "
+			}
+			output += "Mark XP.\n"
 		}
 	}
 	return
