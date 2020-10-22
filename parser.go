@@ -246,11 +246,20 @@ func diceNud(parser *Parser, token Token) (Expr, error) {
 		if number, err = strconv.Atoi(parts[0]); err != nil {
 			return nil, ParseError{err.Error(), token.Position}
 		}
+		if number == 0 {
+			return nil, ParseError{"Can't roll zero dice", token.Position}
+		}
+		if number > 100 {
+			return nil, ParseError{"Can't roll more than 100 dice", token.Position}
+		}
 	}
 	sides := 6
 	if parts[1] != "" {
 		if sides, err = strconv.Atoi(parts[1]); err != nil {
 			return nil, ParseError{err.Error(), token.Position}
+		}
+		if sides == 0 {
+			return nil, ParseError{"Can't roll zero-sided dice", token.Position}
 		}
 	}
 
