@@ -14,9 +14,18 @@ import (
 
 var bot *dicebot.Bot
 
+func logMessage(s *discordgo.Session, level int, format string, args ...interface{}) {
+	if s.LogLevel >= level {
+		log.Printf(format, args...)
+	}
+}
+
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
-	log.Print("Received ready event")
-	s.UpdateStatus(0, "")
+	logMessage(s, discordgo.LogInformational, "Received ready event: %+v", event)
+
+	if err := s.UpdateStatus(0, ""); err != nil {
+		logMessage(s, discordgo.LogError, "Unable to set status: %v", err)
+	}
 }
 
 func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -28,17 +37,17 @@ func onMessageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
 }
 
 func handleMessage(s *discordgo.Session, m *discordgo.Message) {
-	if m.Author.ID == s.State.User.ID {
+	logMessage(s, discordgo.LogDebug, "Received message event: %+v", m)
+
+	if m.Author == nil || s.State == nil || s.State.User == nil || m.Author.ID == s.State.User.ID {
 		return
 	}
 
 	msg := strings.Replace(m.ContentWithMentionsReplaced(), s.State.User.Username, "username", 1)
 
-	log.Printf("Received message: %s", msg)
-
-	channel, err := s.Channel(m.ChannelID)
+	channel, err := s.State.Channel(m.ChannelID)
 	if err != nil {
-		log.Printf("Unable to retreive channel info for %s: %s", m.ChannelID, err)
+		logMessage(s, discordgo.LogError, "Unable to retrieve channel info for %s: %s", m.ChannelID, err)
 		channel = &discordgo.Channel{GuildID: "unknown"}
 	}
 
@@ -51,11 +60,19 @@ func handleMessage(s *discordgo.Session, m *discordgo.Message) {
 
 	response := bot.HandleMessage(context, msg)
 	if response != "" {
-		_, err = s.ChannelMessageSend(m.ChannelID, response)
+		if len(response) < 2000 {
+			_, err = s.ChannelMessageSend(m.ChannelID, response)
+		} else {
+			_, err = s.ChannelMessageSend(m.ChannelID, "Sorry, the result of your command is too long. Try rolling fewer dice.")
+		}
 		if err != nil {
-			log.Printf("Unable to send message to %s: %s", m.ChannelID, err)
+			logMessage(s, discordgo.LogError, "Unable to send message to %s: %s", m.ChannelID, err)
 		}
 	}
+}
+
+func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
+	logMessage(s, discordgo.LogDebug, "Received guild event: %+v", event.Guild)
 }
 
 func run(context *cli.Context) error {
@@ -105,6 +122,7 @@ func run(context *cli.Context) error {
 	discord.AddHandler(onReady)
 	discord.AddHandler(onMessageCreate)
 	discord.AddHandler(onMessageUpdate)
+	discord.AddHandler(onGuildCreate)
 
 	if err := discord.Open(); err != nil {
 		return cli.NewExitError(fmt.Sprintf("Unable to connect to Discord: %s", err), 1)
@@ -114,7 +132,9 @@ func run(context *cli.Context) error {
 	signal.Notify(c, os.Interrupt, os.Kill)
 	<-c
 
-	discord.Close()
+	if err = discord.Close(); err != nil {
+		logMessage(discord, discordgo.LogError, "Unable to close connection: %s", err)
+	}
 
 	return nil
 }
