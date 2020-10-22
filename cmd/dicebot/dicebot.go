@@ -9,7 +9,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/hackedd/dicebot"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var bot *dicebot.Bot
@@ -145,30 +145,30 @@ func main() {
 	app.Usage = "a dice rolling bot for Discord"
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "token",
 			Usage: "Discord authentication token",
 		},
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "shard",
 			Usage: "Shard ID",
 		},
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "num-shards",
 			Usage: "Number of shards",
 			Value: 1,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "log-level",
 			Usage: "Log level (error, warning, info or debug)",
 			Value: "error",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "database",
 			Usage: "Database filename",
 			Value: "dicebot.json",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "moves",
 			Usage: "Load moves from file",
 		},
