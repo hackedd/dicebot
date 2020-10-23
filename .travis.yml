@@ -1,17 +1,12 @@
 language: go
 go:
-    - "1.10"
-    - "1.11"
     - "1.12"
+    - "1.x"
 before_install:
     - go get github.com/mattn/goveralls
-install:
-    - go get github.com/hackedd/dicebot
-    - go get github.com/hackedd/dicebot/cmd/dicebot
-    - go get -v .
-    - go get -v golang.org/x/lint/golint
+    - go get golang.org/x/lint/golint
 script:
     - diff <(gofmt -s -d .) <(echo -n)
-    - go vet -x ./...
+    - go vet ./...
     - golint ./...
     - $HOME/gopath/bin/goveralls -service=travis-ci
