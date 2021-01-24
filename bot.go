@@ -11,7 +11,7 @@ func EscapeMarkdown(input string) string {
 	for _, s := range []string{"*", "~", "_", "`"} {
 		input = strings.Replace(input, s, "\\"+s, -1)
 	}
-	return input
+	return strings.Replace(input, "\\_\\_", "__", -1)
 }
 
 type Bot struct {

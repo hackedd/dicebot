@@ -38,6 +38,8 @@ func TestTokenize(t *testing.T) {
 	checkTokenizer(t, "VAR", []Token{{IDENTIFIER, "VAR", 0}, {END, "", 3}})
 	checkTokenizer(t, "d6", []Token{{DICE, "d6", 0}, {END, "", 2}})
 	checkTokenizer(t, "d", []Token{{IDENTIFIER, "d", 0}, {END, "", 1}})
+	checkTokenizer(t, "best of 2d6", []Token{{BEST_OF, "best of 2d6", 0}, {END, "", 11}})
+	checkTokenizer(t, "best 2 of 3d6", []Token{{BEST_OF, "best 2 of 3d6", 0}, {END, "", 13}})
 
 	if _, err := Tokenize("1.2"); err == nil {
 		t.Error("Unexpected success parsing '1.2'")

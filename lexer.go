@@ -18,6 +18,7 @@ const (
 	NUMBER
 	DICE
 	IDENTIFIER
+	BEST_OF
 	END
 )
 
@@ -45,6 +46,7 @@ type tokenPattern struct {
 var patterns = []tokenPattern{
 	{NUMBER, regexp.MustCompile(`\d+`)},
 	{DICE, regexp.MustCompile(`(?i)(\d*)d(\d+)`)},
+	{BEST_OF, regexp.MustCompile(`(?i)best\s+(\d+\s+)?of\s+(\d*)d(\d+)`)},
 	{IDENTIFIER, regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`)},
 }
 

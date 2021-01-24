@@ -28,6 +28,8 @@ var parseExamples = []parseExample{
 	{"a + b", "(+ a b)", 3},
 	{"c * d6", "(* c 1d6)", 18},
 	{"x", "x", 123},
+	{"best of 2d6", "best of 2d6", 6},
+	{"best 2 of 3d6", "best 2 of 3d6", 12},
 }
 
 func testLookup(name string) (Expr, error) {
@@ -106,6 +108,10 @@ var parseErrorExamples = []parseErrorExample{
 	{"0d6", "Can't roll zero dice near position 0"},
 	{"101d6", "Can't roll more than 100 dice near position 0"},
 	{"1d0", "Can't roll zero-sided dice near position 0"},
+	{"best 0 of d6", "Can't keep zero dice near position 0"},
+	{"best 2 of d6", "Can't keep more than 1 dice near position 0"},
+	{"best 1 of d6", "It doesn't make sense to keep 1 of 1 dice near position 0"},
+	{"best of 101d6", "Can't roll more than 100 dice near position 0"},
 }
 
 func TestParseErrors(t *testing.T) {
@@ -139,6 +145,8 @@ var explainExamples = []explainExample{
 	{"a*b", "1 * 2"},
 	{"r+r", "(6 + 4) + (6 + 6)"},
 	{"qux", "undef"},
+	{"best of 3d6", "best of (__6__, 4, 6)"},
+	{"best 2 of 3d6", "best 2 of (__6__, 4, __6__)"},
 }
 
 func TestExplain(t *testing.T) {

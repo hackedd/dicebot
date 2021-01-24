@@ -23,7 +23,9 @@ func handleMessage(msg string) string {
 
 func ExampleEscapeMarkdown() {
 	fmt.Println(EscapeMarkdown("1 * 2 + `a`"))
+	fmt.Println(EscapeMarkdown("__1__ _"))
 	// Output: 1 \* 2 + \`a\`
+	// __1__ \_
 }
 
 func ExampleBot_HandleMessage_empty() {

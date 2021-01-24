@@ -3,6 +3,7 @@ package dicebot
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -43,6 +44,12 @@ type DiceExpr struct {
 type VariableExpr struct {
 	Name  string
 	Value Expr
+}
+
+type BestOfExpr struct {
+	Number int
+	Of     *DiceExpr
+	Sorted []int
 }
 
 type UnaryFunc func(value int) int
@@ -149,6 +156,68 @@ func (e *VariableExpr) Explain(lookup Lookup) string {
 		return e.Value.Explain(lookup)
 	}
 	return "undef"
+}
+
+func (e *BestOfExpr) String() string {
+	if e.Number == 1 {
+		return fmt.Sprintf("best of %s", e.Of)
+	} else {
+		return fmt.Sprintf("best %d of %s", e.Number, e.Of)
+	}
+}
+
+func (e *BestOfExpr) Roll() {
+	if e.Sorted != nil {
+		return
+	}
+
+	e.Of.Roll()
+
+	e.Sorted = make([]int, e.Of.Number)
+	copy(e.Sorted, e.Of.Rolled)
+	sort.Sort(sort.Reverse(sort.IntSlice(e.Sorted)))
+}
+
+func (e *BestOfExpr) Eval(lookup Lookup) (int, error) {
+	e.Roll()
+
+	t := 0
+	for _, r := range e.Sorted[:e.Number] {
+		t += r
+	}
+	return t, nil
+}
+
+func indexOf(arr []int, needle int) int {
+	for i, element := range arr {
+		if element == needle {
+			return i
+		}
+	}
+	return -1
+}
+
+func (e *BestOfExpr) Explain(lookup Lookup) string {
+	e.Roll()
+
+	kept := make([]int, e.Number)
+	copy(kept, e.Sorted[:e.Number])
+
+	rolled := make([]string, e.Of.Number)
+	for i, r := range e.Of.Rolled {
+		if j := indexOf(kept, r); j >= 0 {
+			rolled[i] = fmt.Sprintf("__%d__", r)
+			kept[j] = 0
+		} else {
+			rolled[i] = fmt.Sprintf("%d", r)
+		}
+	}
+
+	if e.Number == 1 {
+		return fmt.Sprintf("best of (%s)", strings.Join(rolled, ", "))
+	} else {
+		return fmt.Sprintf("best %d of (%s)", e.Number, strings.Join(rolled, ", "))
+	}
 }
 
 func (e *UnaryExpr) String() string {
@@ -270,6 +339,40 @@ func identifierNud(parser *Parser, token Token) (Expr, error) {
 	return &VariableExpr{Name: token.Text}, nil
 }
 
+func bestOfNud(parser *Parser, token Token) (Expr, error) {
+	var err error
+
+	parts := strings.Fields(token.Text)
+	number := 1
+	dice := parts[2]
+
+	if len(parts) == 4 {
+		number, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, ParseError{err.Error(), token.Position}
+		}
+		if number == 0 {
+			return nil, ParseError{"Can't keep zero dice", token.Position}
+		}
+		dice = parts[3]
+	}
+
+	expr, err := diceNud(parser, Token{DICE, dice, token.Position})
+	if err != nil {
+		return nil, err
+	}
+
+	diceExpr := expr.(*DiceExpr)
+	if number > diceExpr.Number {
+		return nil, ParseError{fmt.Sprintf("Can't keep more than %d dice", diceExpr.Number), token.Position}
+	}
+	if number == diceExpr.Number {
+		return nil, ParseError{fmt.Sprintf("It doesn't make sense to keep %d of %d dice", number, number), token.Position}
+	}
+
+	return &BestOfExpr{number, diceExpr, nil}, nil
+}
+
 func prefixNud(operator UnaryFunc) nudFunc {
 	return func(parser *Parser, token Token) (Expr, error) {
 		left, err := parser.parseExpression(100)
@@ -327,6 +430,7 @@ func init() {
 		NUMBER:      {0, numberNud, errorLed},
 		DICE:        {0, diceNud, errorLed},
 		IDENTIFIER:  {0, identifierNud, errorLed},
+		BEST_OF:     {0, bestOfNud, errorLed},
 		END:         {0, errorNud, errorLed},
 	}
 }
