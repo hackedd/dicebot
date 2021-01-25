@@ -26,6 +26,12 @@ type Token struct {
 	Type     TokenType
 	Text     string
 	Position int
+	Matches  []string
+	Indices  []int
+}
+
+func (t Token) MatchPosition(match int) int {
+	return t.Position + t.Indices[match*2]
 }
 
 var operators = map[rune]TokenType{
@@ -44,10 +50,10 @@ type tokenPattern struct {
 
 // Dice is before identifier, so that things like 'd6' are parsed as a dice, not identifier.
 var patterns = []tokenPattern{
-	{NUMBER, regexp.MustCompile(`\d+`)},
-	{DICE, regexp.MustCompile(`(?i)(\d*)d(\d+)`)},
-	{BEST_OF, regexp.MustCompile(`(?i)best\s+(\d+\s+)?of\s+(\d*)d(\d+)`)},
-	{IDENTIFIER, regexp.MustCompile(`(?i)[a-z_][a-z0-9_]*`)},
+	{NUMBER, regexp.MustCompile(`^\d+`)},
+	{DICE, regexp.MustCompile(`(?i)^(\d*)d(\d+)`)},
+	{BEST_OF, regexp.MustCompile(`(?i)^best\s+(?:(\d+)\s+)?of\s+((\d*)d(\d+))`)},
+	{IDENTIFIER, regexp.MustCompile(`(?i)^[a-z_][a-z0-9_]*`)},
 }
 
 type ParseError struct {
@@ -59,14 +65,18 @@ func (e ParseError) Error() string {
 	return fmt.Sprintf("%s near position %d", e.Message, e.Position)
 }
 
-func longestMatch(input string) (tokenType TokenType, match string) {
+func longestMatch(input string) (tokenType TokenType, matches []string, indices []int) {
 	tokenType = END
-	match = ""
+	longest := 0
+	matches = nil
+	indices = nil
 
 	for _, p := range patterns {
-		if loc := p.Pattern.FindStringIndex(input); loc != nil && loc[0] == 0 && loc[1] > len(match) {
+		if loc := p.Pattern.FindStringSubmatchIndex(input); loc != nil && loc[1] > longest {
 			tokenType = p.Type
-			match = input[:loc[1]]
+			longest = loc[1]
+			indices = loc
+			matches = p.Pattern.FindStringSubmatch(input)
 		}
 	}
 
@@ -83,20 +93,20 @@ func Tokenize(expression string) ([]Token, error) {
 		}
 
 		if op, ok := operators[runes[i]]; ok {
-			tokens = append(tokens, Token{op, string(runes[i]), i})
+			tokens = append(tokens, Token{op, string(runes[i]), i, nil, nil})
 			continue
 		}
 
-		tokenType, match := longestMatch(string(runes[i:]))
+		tokenType, matches, indices := longestMatch(string(runes[i:]))
 		if tokenType == END {
 			return nil, ParseError{"Input not matched", i}
 		}
 
-		tokens = append(tokens, Token{tokenType, match, i})
-		i += len(match) - 1
+		tokens = append(tokens, Token{tokenType, matches[0], i, matches, indices})
+		i += indices[1] - 1
 	}
 
-	tokens = append(tokens, Token{END, "", len(runes)})
+	tokens = append(tokens, Token{END, "", len(runes), nil, nil})
 
 	return tokens, nil
 }

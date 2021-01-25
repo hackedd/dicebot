@@ -107,11 +107,11 @@ var parseErrorExamples = []parseErrorExample{
 	{"1 1", "Unexpected input near position 2"},
 	{"0d6", "Can't roll zero dice near position 0"},
 	{"101d6", "Can't roll more than 100 dice near position 0"},
-	{"1d0", "Can't roll zero-sided dice near position 0"},
-	{"best 0 of d6", "Can't keep zero dice near position 0"},
-	{"best 2 of d6", "Can't keep more than 1 dice near position 0"},
-	{"best 1 of d6", "It doesn't make sense to keep 1 of 1 dice near position 0"},
-	{"best of 101d6", "Can't roll more than 100 dice near position 0"},
+	{"1d0", "Can't roll zero-sided dice near position 2"},
+	{"best 0 of d6", "Can't keep zero dice near position 5"},
+	{"best 2 of d6", "Can't keep more than 1 dice near position 5"},
+	{"best 1 of d6", "It doesn't make sense to keep 1 of 1 dice near position 5"},
+	{"best of 101d6", "Can't roll more than 100 dice near position 8"},
 }
 
 func TestParseErrors(t *testing.T) {

@@ -308,27 +308,26 @@ func numberNud(parser *Parser, token Token) (Expr, error) {
 func diceNud(parser *Parser, token Token) (Expr, error) {
 	var err error
 
-	parts := strings.Split(token.Text, "d")
-
 	number := 1
-	if parts[0] != "" {
-		if number, err = strconv.Atoi(parts[0]); err != nil {
-			return nil, ParseError{err.Error(), token.Position}
+	if token.Matches[1] != "" {
+		if number, err = strconv.Atoi(token.Matches[1]); err != nil {
+			return nil, ParseError{err.Error(), token.MatchPosition(1)}
 		}
 		if number == 0 {
-			return nil, ParseError{"Can't roll zero dice", token.Position}
+			return nil, ParseError{"Can't roll zero dice", token.MatchPosition(1)}
 		}
 		if number > 100 {
-			return nil, ParseError{"Can't roll more than 100 dice", token.Position}
+			return nil, ParseError{"Can't roll more than 100 dice", token.MatchPosition(1)}
 		}
 	}
+
 	sides := 6
-	if parts[1] != "" {
-		if sides, err = strconv.Atoi(parts[1]); err != nil {
-			return nil, ParseError{err.Error(), token.Position}
+	if token.Matches[2] != "" {
+		if sides, err = strconv.Atoi(token.Matches[2]); err != nil {
+			return nil, ParseError{err.Error(), token.MatchPosition(2)}
 		}
 		if sides == 0 {
-			return nil, ParseError{"Can't roll zero-sided dice", token.Position}
+			return nil, ParseError{"Can't roll zero-sided dice", token.MatchPosition(2)}
 		}
 	}
 
@@ -342,32 +341,28 @@ func identifierNud(parser *Parser, token Token) (Expr, error) {
 func bestOfNud(parser *Parser, token Token) (Expr, error) {
 	var err error
 
-	parts := strings.Fields(token.Text)
 	number := 1
-	dice := parts[2]
-
-	if len(parts) == 4 {
-		number, err = strconv.Atoi(parts[1])
+	if token.Matches[1] != "" {
+		number, err = strconv.Atoi(token.Matches[1])
 		if err != nil {
-			return nil, ParseError{err.Error(), token.Position}
+			return nil, ParseError{err.Error(), token.MatchPosition(1)}
 		}
 		if number == 0 {
-			return nil, ParseError{"Can't keep zero dice", token.Position}
+			return nil, ParseError{"Can't keep zero dice", token.MatchPosition(1)}
 		}
-		dice = parts[3]
 	}
 
-	expr, err := diceNud(parser, Token{DICE, dice, token.Position})
+	expr, err := diceNud(parser, Token{DICE, token.Matches[2], token.Position, token.Matches[2:], token.Indices[2:]})
 	if err != nil {
 		return nil, err
 	}
 
 	diceExpr := expr.(*DiceExpr)
 	if number > diceExpr.Number {
-		return nil, ParseError{fmt.Sprintf("Can't keep more than %d dice", diceExpr.Number), token.Position}
+		return nil, ParseError{fmt.Sprintf("Can't keep more than %d dice", diceExpr.Number), token.MatchPosition(1)}
 	}
 	if number == diceExpr.Number {
-		return nil, ParseError{fmt.Sprintf("It doesn't make sense to keep %d of %d dice", number, number), token.Position}
+		return nil, ParseError{fmt.Sprintf("It doesn't make sense to keep %d of %d dice", number, number), token.MatchPosition(1)}
 	}
 
 	return &BestOfExpr{number, diceExpr, nil}, nil
