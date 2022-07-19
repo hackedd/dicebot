@@ -72,7 +72,7 @@ func TestParse(t *testing.T) {
 			continue
 		}
 
-		value, err := actual.Eval(testLookup)
+		value, err := Eval(actual, testLookup)
 		if err != nil {
 			t.Errorf("Evaluating '%s' failed: %s", example.input, err)
 			continue
@@ -82,7 +82,7 @@ func TestParse(t *testing.T) {
 			continue
 		}
 
-		secondValue, err := actual.Eval(testLookup)
+		secondValue, err := Eval(actual, testLookup)
 		if err != nil {
 			t.Errorf("Evaluating '%s' failed: %s", example.input, err)
 			continue
@@ -165,7 +165,7 @@ func TestExplain(t *testing.T) {
 			continue
 		}
 
-		actual := expr.Explain(testLookup)
+		actual := Explain(expr, testLookup)
 		if actual != example.expected {
 			t.Errorf("Explaining '%s' failed: %s does not match %s", example.input, actual, example.expected)
 		}

@@ -97,6 +97,18 @@ func ExampleBot_HandleMessage_saveError() {
 	// Sorry, I don't understand how to parse 'save 10 as x for y': undefined scope y
 }
 
+func ExampleBot_HandleMessage_recursive() {
+	fmt.Println(handleMessage("!save recursive+1 as recursive"))
+	fmt.Println(handleMessage("!roll recursive"))
+	// Output:
+	// Saved **recursive+1** as `recursive`
+	// Sorry, I don't understand how to parse 'recursive'
+	// ```
+	// recursive
+	// ^-- Expression too complex
+	// ```
+}
+
 func TestBot_LookupVariable_Scope(t *testing.T) {
 	bot.Save(context, "1", "v1", "user")
 	_, err := bot.LookupVariable(context, "v1")

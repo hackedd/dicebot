@@ -27,8 +27,8 @@ type Lookup func(name string) (Expr, error)
 
 type Expr interface {
 	String() string
-	Eval(lookup Lookup) (int, error)
-	Explain(lookup Lookup) string
+	eval(lookup Lookup, depth int) (int, error)
+	explain(lookup Lookup, depth int) string
 }
 
 type NumberExpr struct {
@@ -77,11 +77,11 @@ func (e *NumberExpr) String() string {
 	return fmt.Sprintf("%d", e.Value)
 }
 
-func (e *NumberExpr) Eval(lookup Lookup) (int, error) {
+func (e *NumberExpr) eval(lookup Lookup, depth int) (int, error) {
 	return e.Value, nil
 }
 
-func (e *NumberExpr) Explain(lookup Lookup) string {
+func (e *NumberExpr) explain(lookup Lookup, depth int) string {
 	return e.String()
 }
 
@@ -100,7 +100,7 @@ func (e *DiceExpr) Roll() {
 	}
 }
 
-func (e *DiceExpr) Eval(lookup Lookup) (int, error) {
+func (e *DiceExpr) eval(lookup Lookup, depth int) (int, error) {
 	e.Roll()
 
 	t := 0
@@ -110,7 +110,7 @@ func (e *DiceExpr) Eval(lookup Lookup) (int, error) {
 	return t, nil
 }
 
-func (e *DiceExpr) Explain(lookup Lookup) string {
+func (e *DiceExpr) explain(lookup Lookup, depth int) string {
 	e.Roll()
 
 	if e.Number == 1 {
@@ -142,18 +142,18 @@ func (e *VariableExpr) Lookup(lookup Lookup) error {
 	return nil
 }
 
-func (e *VariableExpr) Eval(lookup Lookup) (int, error) {
+func (e *VariableExpr) eval(lookup Lookup, depth int) (int, error) {
 	err := e.Lookup(lookup)
 	if err == nil {
-		return e.Value.Eval(lookup)
+		return eval(e.Value, lookup, depth)
 	}
 	return 0, err
 }
 
-func (e *VariableExpr) Explain(lookup Lookup) string {
+func (e *VariableExpr) explain(lookup Lookup, depth int) string {
 	err := e.Lookup(lookup)
 	if err == nil {
-		return e.Value.Explain(lookup)
+		return explain(e.Value, lookup, depth)
 	}
 	return "undef"
 }
@@ -178,7 +178,7 @@ func (e *BestOfExpr) Roll() {
 	sort.Sort(sort.Reverse(sort.IntSlice(e.Sorted)))
 }
 
-func (e *BestOfExpr) Eval(lookup Lookup) (int, error) {
+func (e *BestOfExpr) eval(lookup Lookup, depth int) (int, error) {
 	e.Roll()
 
 	t := 0
@@ -197,7 +197,7 @@ func indexOf(arr []int, needle int) int {
 	return -1
 }
 
-func (e *BestOfExpr) Explain(lookup Lookup) string {
+func (e *BestOfExpr) explain(lookup Lookup, depth int) string {
 	e.Roll()
 
 	kept := make([]int, e.Number)
@@ -224,48 +224,48 @@ func (e *UnaryExpr) String() string {
 	return fmt.Sprintf("(%s %s)", e.OpName, e.Value.String())
 }
 
-func (e *UnaryExpr) Eval(lookup Lookup) (int, error) {
-	value, err := e.Value.Eval(lookup)
+func (e *UnaryExpr) eval(lookup Lookup, depth int) (int, error) {
+	value, err := eval(e.Value, lookup, depth)
 	if err != nil {
 		return 0, err
 	}
 	return e.Operator(value), nil
 }
 
-func (e *UnaryExpr) Explain(lookup Lookup) string {
-	return fmt.Sprintf("%s%s", e.OpName, e.Value.Explain(lookup))
+func (e *UnaryExpr) explain(lookup Lookup, depth int) string {
+	return fmt.Sprintf("%s%s", e.OpName, explain(e.Value, lookup, depth))
 }
 
 func (e *BinaryExpr) String() string {
 	return fmt.Sprintf("(%s %s %s)", e.OpName, e.Left.String(), e.Right.String())
 }
 
-func (e *BinaryExpr) Eval(lookup Lookup) (int, error) {
-	left, err := e.Left.Eval(lookup)
+func (e *BinaryExpr) eval(lookup Lookup, depth int) (int, error) {
+	left, err := eval(e.Left, lookup, depth)
 	if err != nil {
 		return 0, err
 	}
-	right, err := e.Right.Eval(lookup)
+	right, err := eval(e.Right, lookup, depth)
 	if err != nil {
 		return 0, err
 	}
 	return e.Operator(left, right), nil
 }
 
-func (e *BinaryExpr) Explain(lookup Lookup) string {
-	return fmt.Sprintf("%s %s %s", e.Left.Explain(lookup), e.OpName, e.Right.Explain(lookup))
+func (e *BinaryExpr) explain(lookup Lookup, depth int) string {
+	return fmt.Sprintf("%s %s %s", explain(e.Left, lookup, depth), e.OpName, explain(e.Right, lookup, depth))
 }
 
 func (e *ParenExpr) String() string {
 	return e.Expr.String()
 }
 
-func (e *ParenExpr) Eval(lookup Lookup) (int, error) {
-	return e.Expr.Eval(lookup)
+func (e *ParenExpr) eval(lookup Lookup, depth int) (int, error) {
+	return eval(e.Expr, lookup, depth)
 }
 
-func (e *ParenExpr) Explain(lookup Lookup) string {
-	return fmt.Sprintf("(%s)", e.Expr.Explain(lookup))
+func (e *ParenExpr) explain(lookup Lookup, depth int) string {
+	return fmt.Sprintf("(%s)", explain(e.Expr, lookup, depth))
 }
 
 type nudFunc func(parser *Parser, token Token) (Expr, error)
@@ -486,4 +486,28 @@ func ParseString(input string) (Expr, error) {
 	}
 
 	return Parse(tokens)
+}
+
+const MaxDepth = 50
+
+func Eval(expr Expr, lookup Lookup) (int, error) {
+	return eval(expr, lookup, 0)
+}
+
+func Explain(expr Expr, lookup Lookup) string {
+	return explain(expr, lookup, 0)
+}
+
+func eval(expr Expr, lookup Lookup, depth int) (int, error) {
+	if depth >= MaxDepth {
+		return 0, ParseError{"Expression too complex", 0}
+	}
+	return expr.eval(lookup, depth+1)
+}
+
+func explain(expr Expr, lookup Lookup, depth int) string {
+	if depth >= MaxDepth {
+		return "too complex"
+	}
+	return expr.explain(lookup, depth+1)
 }

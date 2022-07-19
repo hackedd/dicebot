@@ -131,7 +131,7 @@ func GetUser(i *discordgo.Interaction) *discordgo.User {
 }
 
 func onInteractionCreate(s *discordgo.Session, event *discordgo.InteractionCreate) {
-	logMessage(s, discordgo.LogInformational, "Received interaction: %+v", event.Interaction)
+	logMessage(s, discordgo.LogDebug, "Received interaction: %+v", event.Interaction)
 
 	channel, err := s.State.Channel(event.ChannelID)
 	if err != nil {

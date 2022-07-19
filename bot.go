@@ -69,12 +69,12 @@ func (bot *Bot) Eval(context MessageContext, input string) (value int, explanati
 		return bot.LookupVariable(context, name)
 	}
 
-	value, err = expr.Eval(lookup)
+	value, err = Eval(expr, lookup)
 	if err != nil {
 		return
 	}
 
-	explanation = expr.Explain(lookup)
+	explanation = Explain(expr, lookup)
 	return
 }
 
